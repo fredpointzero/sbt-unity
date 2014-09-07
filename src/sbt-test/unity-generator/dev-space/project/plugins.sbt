@@ -1,3 +1,5 @@
+logLevel := sbt.Level.Debug
+
 {
   val pluginVersion = System.getProperty("plugin.version")
   if(pluginVersion == null)
