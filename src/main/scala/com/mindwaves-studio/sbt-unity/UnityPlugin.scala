@@ -10,10 +10,18 @@ object UnityPlugin extends sbt.Plugin{
   import UnityKeys._
 
   object UnityKeys {
-    val generateWorkspace = TaskKey[File]("generateWorkspace", "Generate a Unity workspace")
+    val unityHome = SettingKey[File]("unity-home", "Path to the Unity home to use")
+    val unitySource = SettingKey[File]("unity-source", "Default Unity source directory")
+    val generateBuildWorkspace = TaskKey[File]("generate-build-workspace", "Generate a Unity build workspace")
   }
 
-  def unitySettings = Seq(
-    generateWorkspace <<= sourceDirectory in generateWorkspace map {(dir) => {println(dir); dir}}
+  def unitySettings: Seq[Setting[_]] = Seq(
+    unityHome := locateUnityApplicationFile,
+    unitySource := (sourceDirectory in Compile).value / "runtime_assets",
+    generateBuildWorkspace <<= (unitySource in Compile) map {(dir) => {println(dir); dir}}
   )
+
+  private def locateUnityApplicationFile:File = {
+    file("plop")
+  }
 }
