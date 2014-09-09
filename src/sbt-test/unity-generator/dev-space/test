@@ -3,3 +3,4 @@
 
 # Check if the symbolic link was created
 > check-symlink
+> check-unity-project

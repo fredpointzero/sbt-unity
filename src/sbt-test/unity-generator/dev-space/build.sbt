@@ -13,3 +13,11 @@ TaskKey[Unit]("check-symlink") <<= (target, normalizedName) map { (targetDirecto
   }
   ()
 }
+
+TaskKey[Unit]("check-unity-project") <<= (target, normalizedName) map { (targetDirectory, normName) =>
+  if (!(targetDirectory / "/unityBuildWorkspace/Library/").exists()
+    || !(targetDirectory / "/unityBuildWorkspace/ProjectSettings/").exists()) {
+    sys.error("Unity project creation failed, (missing Library or ProjectSettings folders)");
+  }
+  ()
+}

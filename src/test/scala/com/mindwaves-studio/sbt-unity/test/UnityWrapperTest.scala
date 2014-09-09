@@ -17,7 +17,7 @@ class UnityWrapperTest extends FreeSpec {
       }
 
       "on osx" - {
-        assertResult(file("/Application/Unity/Editor/Unity")) {
+        assertResult(file("/Applications/Unity/Unity.app/Contents/MacOS/Unity")) {
           UnityWrapper detectUnityExecutableFromOS "mac";
         }
       }
