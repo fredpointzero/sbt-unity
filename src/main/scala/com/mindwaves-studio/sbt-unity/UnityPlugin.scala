@@ -13,11 +13,13 @@ object UnityPlugin extends sbt.Plugin{
 
   object UnityKeys {
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
-    val unitySource = SettingKey[File]("unity-source", "Default Unity source directory")
+    val unitySourceDirectories = SettingKey[Seq[(String, File)]]("unity-source-directories", "Default Unity source directories")
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
   }
 
-  private def generateWorkspaceTaskById(workspaceId:String, c:Configuration) = (unitySource in c, target in c, normalizedName, streams) map { (sourceDir, targetDir, normName, s) => {
+  private def generateWorkspaceTaskById(workspaceId:String, c:Configuration) = (unitySourceDirectories in c, target in c, normalizedName, streams) map {
+    (sourceAliases, targetDir, normName, s) => {
+
     val unityWorkspaceDirectory = targetDir / s"unity${workspaceId}${c}Workspace";
     val assetDirectory = unityWorkspaceDirectory / "Assets";
     // Make directories if necessary
@@ -26,36 +28,44 @@ object UnityPlugin extends sbt.Plugin{
     }
 
     // Create the Unity project
-    if(!(unityWorkspaceDirectory / "Library").exists()) {
+    if (!(unityWorkspaceDirectory / "Library").exists()) {
       UnityWrapper.createUnityProjectAt(unityWorkspaceDirectory, targetDir / s"unity${workspaceId}${c}WorkspaceCreation.log");
     }
 
-    val linkedDirectory = assetDirectory / s"${normName}_$c";
-    // Replace the target and create the symlink
-    if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
-      s.log.info(s"Replacing directory $linkedDirectory by a symlink");
-      linkedDirectory.delete();
-    }
-    if (!linkedDirectory.exists()) {
-      Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
-    }
-    else {
-      s.log.info(s"Skipping $linkedDirectory as it already exists");
+    for ((sourceAlias, sourceDir:File) <- sourceAliases) {
+      val linkedDirectory = assetDirectory / s"${normName}_$sourceAlias";
+      // Replace the target and create the symlink
+      if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
+        s.log.info(s"Replacing directory $linkedDirectory by a symlink");
+        linkedDirectory.delete();
+      }
+      if (!linkedDirectory.exists()) {
+        Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+      }
+      else {
+        s.log.info(s"Skipping $linkedDirectory as it already exists");
+      }
     }
 
     unityWorkspaceDirectory;
   }}
 
   def unitySettings: Seq[Setting[_]] =
-    unitySettingsIn(Compile) ++ unitySettingsIn(Test)
-
-  private def unitySettingsIn(c: Configuration): Seq[Setting[_]] =
-    inConfig(c)(unitySettings0 ++ Seq(
-      generateWorkspace in c <<= generateWorkspaceTaskById("Build", c)
+    inConfig(Compile)(unitySettings0 ++ Seq(
+      unitySourceDirectories in Compile := Seq(
+        ("main", (sourceDirectory in Compile).value / "runtime_assets")
+      ),
+      generateWorkspace in Compile <<= generateWorkspaceTaskById("Build", Compile)
+    )) ++
+    inConfig(Test)(unitySettings0 ++ Seq(
+      unitySourceDirectories in Test := Seq(
+        ("main", (sourceDirectory in Compile).value / "runtime_assets"),
+        ("test", (sourceDirectory in Test).value / "runtime_assets")
+      ),
+      generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test)
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
-    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    unitySource := sourceDirectory.value / "runtime_assets"
+    unityEditorExecutable := UnityWrapper.detectUnityExecutable
   );
 }
