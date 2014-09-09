@@ -1,21 +1,31 @@
 package com.mindwaves_studio.sbt_unity.test
 
+import com.mindwaves_studio.sbt_unity._
 import org.scalatest._
+import sbt.file
 
 /**
  * Created by Fredpointzero on 09/09/2014.
  */
 class UnityWrapperTest extends FreeSpec {
-  "A Set" - {
-    "when empty" - {
-      "should have size 0" in {
-        assert(Set.empty.size == 0)
+  "UnityWrapper" - {
+    "should detect Unity's executable default path" - {
+      "on windows" - {
+        assertResult(file("C:\\Program Files (x86)\\Unity\\Editor\\Unity.exe")) {
+          UnityWrapper detectUnityExecutableFromOS "windows";
+        }
       }
 
-      "should produce NoSuchElementException when head is invoked" in {
-        intercept[NoSuchElementException] {
-          Set.empty.head
+      "on osx" - {
+        assertResult(file("/Application/Unity/Editor/Unity")) {
+          UnityWrapper detectUnityExecutableFromOS "mac";
         }
+      }
+    }
+
+    "should fail to detect Unity's executable default path on other OS" - {
+      intercept[RuntimeException] {
+        UnityWrapper detectUnityExecutableFromOS "plop";
       }
     }
   }

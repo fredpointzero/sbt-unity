@@ -7,8 +7,8 @@ import sbt._
  */
 object UnityWrapper {
 
-  private val WindowsPattern = ".*win.*".r;
-  private val OSXPattern = ".*mac.*".r;
+  private val WindowsPattern = "(.*win.*)".r;
+  private val OSXPattern = "(.*mac.*)".r;
 
   def detectUnityExecutable = {
     val systemUnityExecutable = System.getProperty("UNITY_EDITOR_PATH");
@@ -29,8 +29,8 @@ object UnityWrapper {
 
   def detectUnityExecutableFromOS(osName:String) = {
     osName toLowerCase match {
-      case WindowsPattern(c) => file("");
-      case OSXPattern(c) => file("");
+      case WindowsPattern(c) => file("C:\\Program Files (x86)\\Unity\\Editor\\Unity.exe");
+      case OSXPattern(c) => file("/Application/Unity/Editor/Unity");
       case _ => throw new RuntimeException(s"This OS ($osName) is not managed by Unity Editor");
     }
   }
