@@ -1,0 +1,14 @@
+# Generate the workspace
+> compile:generateWorkspace
+> test:generateWorkspace
+
+# Check if the symbolic link was created
+> compile:checkSymlink
+> compile:checkUnityProject
+> test:checkSymlink
+> test:checkUnityProject
+
+# Show generated directories
+$ exists target/unityBuildcompileWorkspace/Assets/missing_test_main
+$ exists target/unityBuildtestWorkspace/Assets/missing_test_main
+$ absent target/unityBuildtestWorkspace/Assets/missing_test_test
