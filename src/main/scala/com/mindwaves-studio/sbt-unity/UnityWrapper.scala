@@ -10,8 +10,10 @@ object UnityWrapper {
   private val WindowsPattern = "(.*win.*)".r;
   private val OSXPattern = "(.*mac.*)".r;
 
+  val UNITY_EXECUTABLE_SYSTEM_PROPERTY = "UNITY_EDITOR_PATH";
+
   def detectUnityExecutable = {
-    val systemUnityExecutable = System.getProperty("UNITY_EDITOR_PATH");
+    val systemUnityExecutable = System.getProperty(UNITY_EXECUTABLE_SYSTEM_PROPERTY);
     var result:File = null;
     if (systemUnityExecutable != null) {
       result = file(systemUnityExecutable);

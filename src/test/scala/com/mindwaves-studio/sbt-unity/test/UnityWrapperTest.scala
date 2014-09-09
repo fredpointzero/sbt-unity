@@ -28,5 +28,20 @@ class UnityWrapperTest extends FreeSpec {
         UnityWrapper detectUnityExecutableFromOS "plop";
       }
     }
+
+    "should detect Unity's executable path with a system property" - {
+      var systemPath = System.getProperty(UnityWrapper.UNITY_EXECUTABLE_SYSTEM_PROPERTY);
+      if (systemPath == null) {
+        System.setProperty(
+          UnityWrapper.UNITY_EXECUTABLE_SYSTEM_PROPERTY,
+          UnityWrapper.detectUnityExecutableFromOS(System.getProperty("os.name")).toString()
+        );
+        systemPath = System.getProperty(UnityWrapper.UNITY_EXECUTABLE_SYSTEM_PROPERTY);
+      }
+
+      assertResult(file(systemPath)) {
+        UnityWrapper detectUnityExecutable;
+      }
+    }
   }
 }
