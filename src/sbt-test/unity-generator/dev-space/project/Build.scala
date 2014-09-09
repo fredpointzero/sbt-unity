@@ -13,7 +13,7 @@ object TestBuild extends Build {
   private def testSettingsIn(c: Configuration): Seq[Setting[_]] =
     inConfig(c)(testSettings0 ++ Seq(
       checkSymlink in Compile <<= (target, normalizedName) map { (targetDirectory, normName) =>
-        val path = Paths.get(targetDirectory.getAbsolutePath + s"/unityBuild${c}Workspace/Assets/" + normName);
+        val path = Paths.get(targetDirectory.getAbsolutePath + s"/unityBuild${c}Workspace/Assets/${normName}_$c");
         if(!Files.isSymbolicLink(path)) {
           sys.error(s"$path is not a symbolic link");
         }

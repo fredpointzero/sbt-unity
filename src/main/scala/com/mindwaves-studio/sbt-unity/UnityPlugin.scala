@@ -18,14 +18,19 @@ object UnityPlugin extends sbt.Plugin{
   }
 
   private def generateWorkspaceTaskById(workspaceId:String, c:Configuration) = (unitySource in c, target in c, normalizedName, streams) map { (sourceDir, targetDir, normName, s) => {
-    val unityWorkspaceDirectory = targetDir / s"unity${workspaceId}Workspace";
+    val unityWorkspaceDirectory = targetDir / s"unity${workspaceId}${c}Workspace";
     val assetDirectory = unityWorkspaceDirectory / "Assets";
     // Make directories if necessary
     if (!assetDirectory.exists()) {
       assetDirectory.mkdirs();
     }
 
-    val linkedDirectory = assetDirectory / normName;
+    // Create the Unity project
+    if(!(unityWorkspaceDirectory / "Library").exists()) {
+      UnityWrapper.createUnityProjectAt(unityWorkspaceDirectory, targetDir / s"unity${workspaceId}${c}WorkspaceCreation.log");
+    }
+
+    val linkedDirectory = assetDirectory / s"${normName}_$c";
     // Replace the target and create the symlink
     if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
       s.log.info(s"Replacing directory $linkedDirectory by a symlink");
@@ -38,10 +43,7 @@ object UnityPlugin extends sbt.Plugin{
       s.log.info(s"Skipping $linkedDirectory as it already exists");
     }
 
-    // Create the Unity project
-    UnityWrapper.createUnityProjectAt(unityWorkspaceDirectory, targetDir / s"unity${workspaceId}WorkspaceCreation.log");
-
-    linkedDirectory;
+    unityWorkspaceDirectory;
   }}
 
   def unitySettings: Seq[Setting[_]] =
@@ -49,7 +51,7 @@ object UnityPlugin extends sbt.Plugin{
 
   private def unitySettingsIn(c: Configuration): Seq[Setting[_]] =
     inConfig(c)(unitySettings0 ++ Seq(
-      generateWorkspace in c <<= generateWorkspaceTaskById(s"Build$c", c)
+      generateWorkspace in c <<= generateWorkspaceTaskById("Build", c)
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
