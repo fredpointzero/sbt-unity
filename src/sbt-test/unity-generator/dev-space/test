@@ -1,2 +1,5 @@
-# check if the file gets created
-> generateBuildWorkspace
+# Generate the workspace
+> generateWorkspace
+
+# Check if the symbolic link was created
+> check-symlink

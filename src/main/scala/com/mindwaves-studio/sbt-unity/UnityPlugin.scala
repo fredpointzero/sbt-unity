@@ -1,5 +1,7 @@
 package com.mindwaves_studio.sbt_unity
 
+import java.nio.file.Files
+
 import sbt._
 import sbt.Keys._
 
@@ -12,12 +14,25 @@ object UnityPlugin extends sbt.Plugin{
   object UnityKeys {
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unitySource = SettingKey[File]("unity-source", "Default Unity source directory")
-    val generateBuildWorkspace = TaskKey[File]("generate-build-workspace", "Generate a Unity build workspace")
+    val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
   }
 
   def unitySettings: Seq[Setting[_]] = Seq(
     unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    unitySource := (sourceDirectory in Compile).value / "runtime_assets",
-    generateBuildWorkspace <<= (unitySource in Compile) map { (dir) => {println(dir); dir} }
+    unitySource in Compile := (sourceDirectory in Compile).value / "runtime_assets",
+    generateWorkspace in Compile <<= (unitySource in Compile, target in Compile, normalizedName, streams) map { (sourceDir, targetDir, normName, s) => {
+      val assetDirectory = targetDir / "unityBuildWorkspace/Assets";
+      if (!assetDirectory.exists()) {
+        assetDirectory.mkdirs();
+      }
+      val linkedDirectory = assetDirectory / normName;
+      if (!linkedDirectory.exists()) {
+        Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+      }
+      else {
+        s.log.info(s"Skipping $linkedDirectory as it already exists");
+      }
+      linkedDirectory;
+    }}
   )
 }
