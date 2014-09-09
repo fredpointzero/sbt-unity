@@ -40,7 +40,12 @@ object UnityPlugin extends sbt.Plugin{
         linkedDirectory.delete();
       }
       if (!linkedDirectory.exists()) {
-        Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+        if(sourceDir.exists()) {
+          Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+        }
+        else {
+          s.log.info(s"Skipping $linkedDirectory because $sourceDir does not exists");
+        }
       }
       else {
         s.log.info(s"Skipping $linkedDirectory as it already exists");
@@ -53,14 +58,14 @@ object UnityPlugin extends sbt.Plugin{
   def unitySettings: Seq[Setting[_]] =
     inConfig(Compile)(unitySettings0 ++ Seq(
       unitySourceDirectories in Compile := Seq(
-        ("main", (sourceDirectory in Compile).value / "runtime_assets")
+        ("main", (sourceDirectory in Compile).value / "runtime_resources")
       ),
       generateWorkspace in Compile <<= generateWorkspaceTaskById("Build", Compile)
     )) ++
     inConfig(Test)(unitySettings0 ++ Seq(
       unitySourceDirectories in Test := Seq(
-        ("main", (sourceDirectory in Compile).value / "runtime_assets"),
-        ("test", (sourceDirectory in Test).value / "runtime_assets")
+        ("main", (sourceDirectory in Compile).value / "runtime_resources"),
+        ("test", (sourceDirectory in Test).value / "runtime_resources")
       ),
       generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test)
     ))
