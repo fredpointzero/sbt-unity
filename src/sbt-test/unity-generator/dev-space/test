@@ -7,3 +7,7 @@
 > compile:checkUnityProject
 > test:checkSymlink
 > test:checkUnityProject
+
+# Show generated directories
+$ exec ls target
+$ exec ls -la target/*/Assets
