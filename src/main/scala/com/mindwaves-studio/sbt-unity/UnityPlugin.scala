@@ -13,9 +13,10 @@ object UnityPlugin extends sbt.Plugin{
   import UnityKeys._
 
   object UnityKeys {
-    val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
-    val unityBuildTarget = SettingKey[UnityWrapper.BuildTarget.Value]("unity-build-target", "Target platform for the build")
+    val buildTarget = SettingKey[UnityWrapper.BuildTarget.Value]("build-target", "Target platform for the build")
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
+    val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
+    val unityPackageDefinitions = SettingKey[Seq[Tuple2[String, Seq[String]]]]("unity-package-definitions", "Define the unity packages to be exported")
   }
 
   def unitySettings: Seq[Setting[_]] =
@@ -35,7 +36,7 @@ object UnityPlugin extends sbt.Plugin{
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
     unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    unityBuildTarget := UnityWrapper.getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"))(0)
+    buildTarget := UnityWrapper.getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"))(0)
   );
 
   def extractSourceDirectoryContext(path:File):String =
@@ -60,7 +61,7 @@ object UnityPlugin extends sbt.Plugin{
   }
 
   private def buildPlayerTaskIn(c:Configuration) =
-    (generateWorkspace in c, unityBuildTarget in c, target, normalizedName) map { (generatedWorkspaceDir, buildTarget, targetDir, normName) => {
+    (generateWorkspace in c, buildTarget in c, target, normalizedName) map { (generatedWorkspaceDir, buildTarget, targetDir, normName) => {
       val targetDirectory = targetDir / s"${buildTarget}/${normName}";
       if(!targetDirectory.exists()) {
         targetDirectory.mkdirs();

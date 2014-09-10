@@ -13,6 +13,11 @@ object UnityWrapper {
     val Windows, Windows64, OSX, OSX64, OSXUniversal, Linux32, Linux64, LinuxUniversal, Web, WebStreamed, None = Value;
   }
 
+  object Compiler extends Enumeration {
+    type Compiler = Value;
+    val Player, AssetBundle, UnityPackage, None = Value;
+  }
+
   val UNITY_EXECUTABLE_SYSTEM_PROPERTY = "UNITY_EDITOR_PATH";
 
   def detectUnityExecutable = {
