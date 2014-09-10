@@ -14,7 +14,7 @@ object UnityPlugin extends sbt.Plugin{
 
   object UnityKeys {
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
-    val unityBuildTarget = SettingKey[UnityWrapper.UnityBuildTarget.Value]("unity-build-target", "Target platform for the build")
+    val unityBuildTarget = SettingKey[UnityWrapper.BuildTarget.Value]("unity-build-target", "Target platform for the build")
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
   }
 

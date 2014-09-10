@@ -8,8 +8,8 @@ import sbt._
 object UnityWrapper {
   import scala.sys.process._
 
-  object UnityBuildTarget extends Enumeration {
-    type UnityBuildTarget = Value;
+  object BuildTarget extends Enumeration {
+    type BuildTarget = Value;
     val Windows, Windows64, OSX, OSX64, OSXUniversal, Linux32, Linux64, LinuxUniversal, Web, WebStreamed, None = Value;
   }
 
@@ -40,11 +40,11 @@ object UnityWrapper {
     }
   }
 
-  def getBuildTargetCapabilitiesFromOS(osName:String):Seq[UnityBuildTarget.Value] = {
+  def getBuildTargetCapabilitiesFromOS(osName:String):Seq[BuildTarget.Value] = {
     osName toLowerCase match {
-      case WindowsPattern(c) => Seq(UnityBuildTarget.Windows, UnityBuildTarget.Windows64, UnityBuildTarget.Web, UnityBuildTarget.WebStreamed);
-      case OSXPattern(c) => Seq(UnityBuildTarget.OSX, UnityBuildTarget.OSX,  UnityBuildTarget.OSXUniversal, UnityBuildTarget.Web, UnityBuildTarget.WebStreamed);
-      case _ => Seq(UnityBuildTarget.None);
+      case WindowsPattern(c) => Seq(BuildTarget.Windows, BuildTarget.Windows64, BuildTarget.Web, BuildTarget.WebStreamed);
+      case OSXPattern(c) => Seq(BuildTarget.OSX, BuildTarget.OSX,  BuildTarget.OSXUniversal, BuildTarget.Web, BuildTarget.WebStreamed);
+      case _ => Seq(BuildTarget.None);
     }
   }
 
@@ -63,24 +63,29 @@ object UnityWrapper {
     }
   }
 
-  def buildUnityPlayer(projectPath: File, logFile: File, targetPlatform:UnityBuildTarget.Value, targetDirectory:File) = {
+  def buildUnityPlayer(projectPath: File, logFile: File, targetPlatform:BuildTarget.Value, targetDirectory:File) = {
     val buildCapabilities = getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"));
     if (!buildCapabilities.contains(targetPlatform)) {
       throw new IllegalArgumentException(s"Target platform $targetPlatform is not supported on this OS");
     }
 
-    val buildMethod = targetPlatform match {
-      case UnityBuildTarget.Linux32 => "buildLinux32Player";
-      case UnityBuildTarget.Linux64 => "buildLinux64Player";
-      case UnityBuildTarget.LinuxUniversal => "buildLinuxUniversalPlayer";
-      case UnityBuildTarget.OSX => "buildOSXPlayer";
-      case UnityBuildTarget.OSX64 => "buildOSX64Player";
-      case UnityBuildTarget.OSXUniversal => "buildOSXUniversalPlayer";
-      case UnityBuildTarget.Web => "buildWebPlayer";
-      case UnityBuildTarget.WebStreamed => "buildWebPlayerStreamed";
-      case UnityBuildTarget.Windows => "buildWindowsPlayer";
-      case UnityBuildTarget.Windows64 => "buildWindows64Player";
+    val (buildMethod, ext) = targetPlatform match {
+      case BuildTarget.Linux32 => ("buildLinux32Player", null);
+      case BuildTarget.Linux64 => ("buildLinux64Player", null);
+      case BuildTarget.LinuxUniversal => ("buildLinuxUniversalPlayer", null);
+      case BuildTarget.OSX => ("buildOSXPlayer", "bundle");
+      case BuildTarget.OSX64 => ("buildOSX64Player", "bundle");
+      case BuildTarget.OSXUniversal => ("buildOSXUniversalPlayer", "bundle");
+      case BuildTarget.Web => ("buildWebPlayer", null);
+      case BuildTarget.WebStreamed => ("buildWebPlayerStreamed", null);
+      case BuildTarget.Windows => ("buildWindowsPlayer", "exe");
+      case BuildTarget.Windows64 => ("buildWindows64Player", "exe");
       case _ => throw new IllegalArgumentException(s"Unmanaged build target: $targetPlatform");
+    }
+
+    var targetPath = targetDirectory.getAbsolutePath();
+    if (ext != null && !targetPath.endsWith(ext)) {
+      targetPath += s".$ext";
     }
 
     val result = Seq(
@@ -92,7 +97,7 @@ object UnityWrapper {
       "-projectPath ",
       projectPath.getAbsolutePath(),
       s"-$buildMethod",
-      targetDirectory.getAbsolutePath()).!;
+      targetPath).!;
 
     if(result != 0) {
       throw new RuntimeException(s"Could not build player Unity project at $projectPath (see $logFile)");
