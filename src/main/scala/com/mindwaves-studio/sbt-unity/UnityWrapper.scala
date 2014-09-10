@@ -133,7 +133,7 @@ object UnityWrapper {
         (targetParentDirectory / s"${alias}.unitypackage").toString()) !;
 
       if(result != 0) {
-        failedPackages += alias;
+        failedPackages = failedPackages :+ alias;
       }
     }
     if (failedPackages.size > 0) {
