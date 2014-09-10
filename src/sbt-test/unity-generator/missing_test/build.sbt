@@ -1,4 +1,4 @@
-name := "missing_test"
+name := baseDirectory.value.name
 
 version := "0.1"
 

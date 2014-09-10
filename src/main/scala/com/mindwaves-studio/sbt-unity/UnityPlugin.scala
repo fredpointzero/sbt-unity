@@ -20,7 +20,8 @@ object UnityPlugin extends sbt.Plugin{
 
   def unitySettings: Seq[Setting[_]] =
     inConfig(Compile)(unitySettings0 ++ Seq(
-      (sourceDirectories in Compile) += (sourceDirectory in Compile).value / LINKED_FOLDER_NAME,
+      (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
+      (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Compile <<= generateWorkspaceTaskById("Build", Compile),
       compile in Compile <<= (generateWorkspace in Compile, unityBuildTarget in Compile, target) map { (generatedWorkspaceDir, buildTarget, targetDir) => {
         val targetDirectory = targetDir / s"build_${buildTarget}_main";
@@ -32,8 +33,9 @@ object UnityPlugin extends sbt.Plugin{
       }}
     )) ++
     inConfig(Test)(unitySettings0 ++ Seq(
-      (sourceDirectories in Test) += (sourceDirectory in Compile).value / LINKED_FOLDER_NAME,
-      (sourceDirectories in Test) += (sourceDirectory in Test).value / LINKED_FOLDER_NAME,
+      (sourceDirectories in Test) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
+      (sourceDirectories in Test) += (sourceDirectory in Test).value / SOURCES_FOLDER_NAME,
+      (sourceDirectories in Test) += (sourceDirectory in Test).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test)
     ))
 
@@ -42,9 +44,19 @@ object UnityPlugin extends sbt.Plugin{
     unityBuildTarget := UnityWrapper.getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"))(0)
   );
 
-  def extractSourceDirectoryContext(path:File):String = {
-    val matches = SOURCE_PATH_PATTERN findAllIn(path toString);
-    if (matches.hasNext) {
+  def extractSourceDirectoryContext(path:File):String =
+    extractAnyDirectoryContext(path, SOURCES_FOLDER_NAME);
+
+  def extractSettingsDirectoryContext(path:File):String =
+    extractAnyDirectoryContext(path, SETTINGS_FOLDER_NAME);
+
+  private val SOURCES_FOLDER_NAME = "runtime_resources";
+  private val SETTINGS_FOLDER_NAME = "unity_settings";
+  private val ANY_PATH_PATTERN = "([^\\\\/]*)(?:\\\\|/)([^\\\\/]*)$".r;
+
+  private def extractAnyDirectoryContext(path:File, folderName:String):String = {
+    val matches = ANY_PATH_PATTERN findAllIn(path toString);
+    if (matches.hasNext && matches.group(2) == folderName) {
       val context = matches.group(1);
       return context;
     }
@@ -52,9 +64,6 @@ object UnityPlugin extends sbt.Plugin{
       return null;
     }
   }
-
-  private val LINKED_FOLDER_NAME = "runtime_resources";
-  private val SOURCE_PATH_PATTERN = s"([^\\\\/]*)(?:\\\\|/)${LINKED_FOLDER_NAME}$$".r;
 
   private def generateWorkspaceTaskById(workspaceId:String, c:Configuration) = (sourceDirectories in c, target in c, normalizedName, streams) map {
   (sourceDirs, targetDir, normName, s) => {
@@ -71,9 +80,9 @@ object UnityPlugin extends sbt.Plugin{
     }
 
     for (sourceDir <- sourceDirs) {
-      val context = extractSourceDirectoryContext(sourceDir);
-      if (context != null) {
-        val linkedDirectory = assetDirectory / s"${normName}_${context}";
+      val sourcesContext = extractSourceDirectoryContext(sourceDir);
+      if (sourcesContext != null) {
+        val linkedDirectory = assetDirectory / s"${normName}_${sourcesContext}";
         // Replace the target and create the symlink
         if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
           s.log.info(s"Replacing directory $linkedDirectory by a symlink");
@@ -89,6 +98,18 @@ object UnityPlugin extends sbt.Plugin{
         }
         else {
           s.log.info(s"Skipping $linkedDirectory as it already exists");
+        }
+      }
+
+      val settingsContext = extractSettingsDirectoryContext(sourceDir);
+      if (settingsContext != null && sourceDir.exists()) {
+        for(settingFile <- sourceDir.listFiles("*.asset")) {
+          val targetLink = unityWorkspaceDirectory / "ProjectSettings" / settingFile.name;
+          if(targetLink.exists()) {
+            s.log.info(s"Deleting existing setting: $targetLink");
+            targetLink.delete();
+          }
+          Files.createSymbolicLink(targetLink toPath, settingFile toPath);
         }
       }
     }
