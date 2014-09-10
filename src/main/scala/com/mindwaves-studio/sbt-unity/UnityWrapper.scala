@@ -83,6 +83,11 @@ object UnityWrapper {
       case _ => throw new IllegalArgumentException(s"Unmanaged build target: $targetPlatform");
     }
 
+    val parentDir = file(targetDirectory.getParent());
+    if (!parentDir.exists()) {
+      parentDir.mkdirs();
+    }
+
     var targetPath = targetDirectory.getAbsolutePath();
     if (ext != null && !targetPath.endsWith(ext)) {
       targetPath += s".$ext";

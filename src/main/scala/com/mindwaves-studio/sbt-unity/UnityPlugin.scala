@@ -23,20 +23,14 @@ object UnityPlugin extends sbt.Plugin{
       (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
       (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Compile <<= generateWorkspaceTaskById("Build", Compile),
-      compile in Compile <<= (generateWorkspace in Compile, unityBuildTarget in Compile, target) map { (generatedWorkspaceDir, buildTarget, targetDir) => {
-        val targetDirectory = targetDir / s"build_${buildTarget}_main";
-        if(!targetDirectory.exists()) {
-          targetDirectory.mkdirs();
-        }
-        UnityWrapper.buildUnityPlayer(generatedWorkspaceDir, targetDir / s"build_${buildTarget}_main.log", buildTarget, targetDirectory);
-        Analysis.Empty
-      }}
+      compile in Compile <<= buildPlayerTaskIn(Compile)
     )) ++
     inConfig(Test)(unitySettings0 ++ Seq(
       (sourceDirectories in Test) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
       (sourceDirectories in Test) += (sourceDirectory in Test).value / SOURCES_FOLDER_NAME,
       (sourceDirectories in Test) += (sourceDirectory in Test).value / SETTINGS_FOLDER_NAME,
-      generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test)
+      generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test),
+      compile in Test <<= buildPlayerTaskIn(Test)
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
@@ -64,6 +58,16 @@ object UnityPlugin extends sbt.Plugin{
       return null;
     }
   }
+
+  private def buildPlayerTaskIn(c:Configuration) =
+    (generateWorkspace in c, unityBuildTarget in c, target, normalizedName) map { (generatedWorkspaceDir, buildTarget, targetDir, normName) => {
+      val targetDirectory = targetDir / s"${buildTarget}/${normName}";
+      if(!targetDirectory.exists()) {
+        targetDirectory.mkdirs();
+      }
+      UnityWrapper.buildUnityPlayer(generatedWorkspaceDir, targetDir / s"build_${buildTarget}.log", buildTarget, targetDirectory);
+      Analysis.Empty
+    }}
 
   private def generateWorkspaceTaskById(workspaceId:String, c:Configuration) = (sourceDirectories in c, target in c, normalizedName, streams) map {
   (sourceDirs, targetDir, normName, s) => {
