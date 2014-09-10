@@ -24,19 +24,19 @@ object UnityPlugin extends sbt.Plugin{
       (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
       (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Compile <<= generateWorkspaceTaskById("Build", Compile),
-      compile in Compile <<= buildPlayerTaskIn(Compile)
+      compile in Compile <<= compileTaskIn(Compile)
     )) ++
     inConfig(Test)(unitySettings0 ++ Seq(
       (sourceDirectories in Test) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
       (sourceDirectories in Test) += (sourceDirectory in Test).value / SOURCES_FOLDER_NAME,
       (sourceDirectories in Test) += (sourceDirectory in Test).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test),
-      compile in Test <<= buildPlayerTaskIn(Test)
+      compile in Test <<= compileTaskIn(Test)
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
     unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    buildTarget := UnityWrapper.getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"))(0)
+    buildTarget := UnityWrapper.BuildTarget.None
   );
 
   def extractSourceDirectoryContext(path:File):String =
@@ -60,13 +60,29 @@ object UnityPlugin extends sbt.Plugin{
     }
   }
 
-  private def buildPlayerTaskIn(c:Configuration) =
-    (generateWorkspace in c, buildTarget in c, target, normalizedName) map { (generatedWorkspaceDir, buildTarget, targetDir, normName) => {
-      val targetDirectory = targetDir / s"${buildTarget}/${normName}";
-      if(!targetDirectory.exists()) {
-        targetDirectory.mkdirs();
+  private def compileTaskIn(c:Configuration) =
+    (generateWorkspace in c, buildTarget in c, unityPackageDefinitions in c, target, normalizedName, streams) map {
+    (generatedWorkspaceDir, buildTarget, packageDefinitions, targetDir, normName, s) => {
+      // Build player
+      if (buildTarget != UnityWrapper.BuildTarget.None) {
+        val targetDirectory = targetDir / s"${buildTarget}/${normName}";
+        if(!targetDirectory.exists()) {
+          targetDirectory.mkdirs();
+        }
+        UnityWrapper.buildUnityPlayer(generatedWorkspaceDir, targetDir / s"build_${buildTarget}.log", buildTarget, targetDirectory);
       }
-      UnityWrapper.buildUnityPlayer(generatedWorkspaceDir, targetDir / s"build_${buildTarget}.log", buildTarget, targetDirectory);
+      else {
+        s.log.info("Skipping player build");
+      }
+
+      // Build Unity Packages
+      if (packageDefinitions.size > 0) {
+        UnityWrapper.buildUnityPackage(generatedWorkspaceDir, targetDir / "unity_packages", packageDefinitions);
+      }
+      else {
+        s.log.info("Skipping Unity package build");
+      }
+
       Analysis.Empty
     }}
 

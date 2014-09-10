@@ -1,0 +1,7 @@
+# Build Unity Package
+$ pause
+> compile
+$ exec ls -la target/*
+$ pause
+# $ exists target/Windows64/build-player-windows64.exe
+# $ exists target/Windows64/build-player-windows64.exe

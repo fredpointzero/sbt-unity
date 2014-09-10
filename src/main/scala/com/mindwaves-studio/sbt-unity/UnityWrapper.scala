@@ -13,11 +13,6 @@ object UnityWrapper {
     val Windows, Windows64, OSX, OSX64, OSXUniversal, Linux32, Linux64, LinuxUniversal, Web, WebStreamed, None = Value;
   }
 
-  object Compiler extends Enumeration {
-    type Compiler = Value;
-    val Player, AssetBundle, UnityPackage, None = Value;
-  }
-
   val UNITY_EXECUTABLE_SYSTEM_PROPERTY = "UNITY_EDITOR_PATH";
 
   def detectUnityExecutable = {
@@ -110,7 +105,39 @@ object UnityWrapper {
       targetPath).!;
 
     if(result != 0) {
-      throw new RuntimeException(s"Could not build player Unity project at $projectPath (see $logFile)");
+      throw new RuntimeException(s"Could not build Unity player at $projectPath (see $logFile)");
+    }
+  }
+
+  def buildUnityPackage(projectPath: File, targetParentDirectory:File, definitions:Seq[Tuple2[String, Seq[String]]]) = {
+
+    val commonCmd = List(
+      detectUnityExecutable.getAbsolutePath(),
+      "-batchMode",
+      "-quit",
+      "-projectPath ",
+      projectPath.getAbsolutePath(),
+      "-exportPackage"
+    );
+
+    if (!targetParentDirectory.exists()) {
+      targetParentDirectory.mkdirs();
+    }
+
+    var failedPackages:List[String] = List();
+    for((alias:String, paths) <- definitions) {
+      val logFile = targetParentDirectory / s"${alias}.log";
+      val result = (commonCmd ++
+        Seq("-logFile", logFile.toString()) ++
+        paths :+
+        (targetParentDirectory / s"${alias}.unitypackage").toString()) !;
+
+      if(result != 0) {
+        failedPackages += alias;
+      }
+    }
+    if (failedPackages.size > 0) {
+      throw new RuntimeException(s"Could not build following Unity packages: (${failedPackages.mkString(",")}) (see in $targetParentDirectory)");
     }
   }
 
