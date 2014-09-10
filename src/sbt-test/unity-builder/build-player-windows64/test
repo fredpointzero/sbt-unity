@@ -1,0 +1,5 @@
+# Build Windows 32 bit player
+> set UnityKeys.unityBuildTarget in Compile := com.mindwaves_studio.sbt_unity.UnityWrapper.BuildTarget.Windows64
+> compile
+$ exists target/build_Windows64_main.exe
+$ exists target/build_Windows64_main_Data
