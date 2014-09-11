@@ -16,7 +16,7 @@ object UnityWrapper {
   val UNITY_EXECUTABLE_SYSTEM_PROPERTY = "UNITY_EDITOR_PATH";
 
   def detectUnityExecutable = {
-    val systemUnityExecutable = System.getProperty(UNITY_EXECUTABLE_SYSTEM_PROPERTY);
+    val systemUnityExecutable = System.getenv(UNITY_EXECUTABLE_SYSTEM_PROPERTY);
     var result:File = null;
     if (systemUnityExecutable != null) {
       result = file(systemUnityExecutable);
@@ -48,9 +48,11 @@ object UnityWrapper {
     }
   }
 
-  def createUnityProjectAt(projectPath:File, logFile:File) = {
+  def createUnityProjectAt(projectPath:File, logFile:File, log:Logger) = {
+    val executable = detectUnityExecutable;
+    log.info(s"Using $executable");
     val result = Seq(
-      detectUnityExecutable.getAbsolutePath(),
+      executable.getAbsolutePath(),
       "-batchMode",
       "-quit",
       "-logFile",
@@ -63,7 +65,7 @@ object UnityWrapper {
     }
   }
 
-  def buildUnityPlayer(projectPath: File, logFile: File, targetPlatform:BuildTarget.Value, targetDirectory:File) = {
+  def buildUnityPlayer(projectPath: File, logFile: File, targetPlatform:BuildTarget.Value, targetDirectory:File, log:Logger) = {
     val buildCapabilities = getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"));
     if (!buildCapabilities.contains(targetPlatform)) {
       throw new IllegalArgumentException(s"Target platform $targetPlatform is not supported on this OS");
@@ -93,8 +95,10 @@ object UnityWrapper {
       targetPath += s".$ext";
     }
 
+    val executable = detectUnityExecutable;
+    log.info(s"Using $executable");
     val result = Seq(
-      detectUnityExecutable.getAbsolutePath(),
+      executable.getAbsolutePath(),
       "-batchMode",
       "-quit",
       "-logFile",
@@ -109,10 +113,12 @@ object UnityWrapper {
     }
   }
 
-  def buildUnityPackage(projectPath: File, targetParentDirectory:File, definitions:Seq[Tuple2[String, Seq[String]]]) = {
+  def buildUnityPackage(projectPath: File, targetParentDirectory:File, definitions:Seq[Tuple2[String, Seq[String]]], log:Logger) = {
 
+    val executable = detectUnityExecutable;
+    log.info(s"Using $executable");
     val commonCmd = List(
-      detectUnityExecutable.getAbsolutePath(),
+      executable.getAbsolutePath(),
       "-batchMode",
       "-quit",
       "-projectPath ",
@@ -128,9 +134,8 @@ object UnityWrapper {
     for((alias:String, paths) <- definitions) {
       val logFile = targetParentDirectory / s"${alias}.log";
       val result = (commonCmd ++
-        Seq("-logFile", logFile.toString()) ++
-        paths :+
-        (targetParentDirectory / s"${alias}.unitypackage").toString()) !;
+        (paths :+ (targetParentDirectory / s"${alias}.unitypackage").toString()) ++
+        Seq("-logFile", logFile.toString())) !;
 
       if(result != 0) {
         failedPackages = failedPackages :+ alias;

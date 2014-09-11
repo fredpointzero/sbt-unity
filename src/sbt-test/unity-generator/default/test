@@ -9,5 +9,5 @@
 > test:checkUnityProject
 
 # Show generated directories
-$ exec ls target
-$ exec ls -la target/*/Assets
+# $ exec ls target
+# $ exec ls -la target/*/Assets

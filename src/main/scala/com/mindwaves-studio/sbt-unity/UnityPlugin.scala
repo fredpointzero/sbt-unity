@@ -69,7 +69,7 @@ object UnityPlugin extends sbt.Plugin{
         if(!targetDirectory.exists()) {
           targetDirectory.mkdirs();
         }
-        UnityWrapper.buildUnityPlayer(generatedWorkspaceDir, targetDir / s"build_${buildTarget}.log", buildTarget, targetDirectory);
+        UnityWrapper.buildUnityPlayer(generatedWorkspaceDir, targetDir / s"build_${buildTarget}.log", buildTarget, targetDirectory, s.log);
       }
       else {
         s.log.info("Skipping player build");
@@ -77,7 +77,7 @@ object UnityPlugin extends sbt.Plugin{
 
       // Build Unity Packages
       if (packageDefinitions.size > 0) {
-        UnityWrapper.buildUnityPackage(generatedWorkspaceDir, targetDir / "unity_packages", packageDefinitions);
+        UnityWrapper.buildUnityPackage(generatedWorkspaceDir, targetDir / "unity_packages", packageDefinitions, s.log);
       }
       else {
         s.log.info("Skipping Unity package build");
@@ -97,7 +97,7 @@ object UnityPlugin extends sbt.Plugin{
 
     // Create the Unity project
     if (!(unityWorkspaceDirectory / "Library").exists()) {
-      UnityWrapper.createUnityProjectAt(unityWorkspaceDirectory, targetDir / s"unity${workspaceId}${c}WorkspaceCreation.log");
+      UnityWrapper.createUnityProjectAt(unityWorkspaceDirectory, targetDir / s"unity${workspaceId}${c}WorkspaceCreation.log", s.log);
     }
 
     for (sourceDir <- sourceDirs) {
