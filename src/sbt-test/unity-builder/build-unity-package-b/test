@@ -1,0 +1,4 @@
+# Build Unity Package
+$ pause
+> compile
+$ exists target/build-unity-package-b.unitypackage

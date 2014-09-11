@@ -1,0 +1,4 @@
+# Build Windows 32 bit player
+> set UnityKeys.buildTarget in Compile := com.mindwaves_studio.sbt_unity.UnityWrapper.BuildTarget.Windows
+> package
+$ exists target/Windows/build-player-windows.zip

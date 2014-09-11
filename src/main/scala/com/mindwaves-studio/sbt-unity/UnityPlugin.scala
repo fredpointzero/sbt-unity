@@ -40,7 +40,43 @@ object UnityPlugin extends sbt.Plugin{
     buildTarget := UnityWrapper.BuildTarget.None,
     unityPackageSourceDirectories := Seq(),
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
-    sourceDirectories ++= Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME)
+    sourceDirectories ++= Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
+    mappings <<= (buildTarget, unityPackageSourceDirectories, target, normalizedName, streams) map {
+      (buildTarget, unityPackageSourceDirectories, target, normalizedName, s) => {
+        var result:Seq[(File, String)] = Seq();
+
+        if (buildTarget != UnityWrapper.BuildTarget.None) {
+          result = buildTarget match {
+            case UnityWrapper.BuildTarget.Windows
+                 | UnityWrapper.BuildTarget.Windows64 => Seq(target / s"${buildTarget}/${normalizedName}.exe") ++
+                  recursiveListFiles(target / s"${buildTarget}/${normalizedName}") map {
+                    (file) => (file, file.relativeTo(target).toString())
+                  };
+            case _ => throw new RuntimeException(s"Unmanaged products for platform: $buildTarget");
+          }
+        }
+        else if (unityPackageSourceDirectories.size > 0) {
+          result = Seq((target / s"${normalizedName}.unitypackage", s"${normalizedName}.unitypackage"));
+        }
+
+        result;
+      }
+    },
+    packageBin :=  {
+      var result:File = null;
+      if (mappings.value.size == 1 && mappings.value(0)._1.ext == "unitypackage") {
+        result = mappings.value(0)._1;
+      }
+      else if (mappings.value.size > 1) {
+        val targetFile = target.value / s"${normalizedName.value}-${version.value}-${buildTarget.value}.zip";
+        IO.zip(mappings.value, targetFile);
+        result = targetFile;
+      }
+      else {
+        throw new RuntimeException("Nothing to package");
+      }
+      result;
+    }
   );
 
   def extractSourceDirectoryContext(path:File):String =
@@ -150,4 +186,9 @@ object UnityPlugin extends sbt.Plugin{
 
     unityWorkspaceDirectory;
   }}
+
+  private def recursiveListFiles(f: File): Array[File] = {
+    val these = f.listFiles
+    these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
+  }
 }
