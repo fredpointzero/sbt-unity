@@ -113,7 +113,7 @@ object UnityWrapper {
     }
   }
 
-  def buildUnityPackage(projectPath: File, targetParentDirectory:File, definitions:Seq[Tuple2[String, Seq[String]]], log:Logger) = {
+  def buildUnityPackage(projectPath: File, targetFile:File, sourceDirectories:Seq[String], log:Logger) = {
 
     val executable = detectUnityExecutable;
     log.info(s"Using $executable");
@@ -126,23 +126,24 @@ object UnityWrapper {
       "-exportPackage"
     );
 
-    if (!targetParentDirectory.exists()) {
-      targetParentDirectory.mkdirs();
+    val parentDirectory = file(targetFile.getParent());
+    if (!parentDirectory.exists()) {
+      parentDirectory.mkdirs();
     }
 
-    var failedPackages:List[String] = List();
-    for((alias:String, paths) <- definitions) {
-      val logFile = targetParentDirectory / s"${alias}.log";
-      val result = (commonCmd ++
-        (paths :+ (targetParentDirectory / s"${alias}.unitypackage").toString()) ++
-        Seq("-logFile", logFile.toString())) !;
-
-      if(result != 0) {
-        failedPackages = failedPackages :+ alias;
+    // Check that inputs are directories
+    for (path <- sourceDirectories) {
+      val fileToCheck = projectPath / path;
+      if (!fileToCheck.isDirectory()) {
+        throw new RuntimeException(s"$path ($fileToCheck) is not a directory");
       }
     }
-    if (failedPackages.size > 0) {
-      throw new RuntimeException(s"Could not build following Unity packages: (${failedPackages.mkString(",")}) (see in $targetParentDirectory)");
+
+    val logFile = file(s"${targetFile}.log");
+    val result = (commonCmd ++ (sourceDirectories :+ targetFile.toString()) ++ Seq("-logFile", logFile.toString())) !;
+
+    if(result != 0) {
+      throw new RuntimeException(s"Could not build Unity package (see $logFile)");
     }
   }
 

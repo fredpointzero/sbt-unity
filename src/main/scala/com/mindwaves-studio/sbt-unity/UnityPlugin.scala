@@ -16,7 +16,7 @@ object UnityPlugin extends sbt.Plugin{
     val buildTarget = SettingKey[UnityWrapper.BuildTarget.Value]("build-target", "Target platform for the build")
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
-    val unityPackageDefinitions = SettingKey[Seq[Tuple2[String, Seq[String]]]]("unity-package-definitions", "Define the unity packages to be exported")
+    val unityPackageSourceDirectories = SettingKey[Seq[String]]("unity-package-source-directories", "Define the Unity relative directories to export as Unity package")
   }
 
   def unitySettings: Seq[Setting[_]] =
@@ -61,8 +61,8 @@ object UnityPlugin extends sbt.Plugin{
   }
 
   private def compileTaskIn(c:Configuration) =
-    (generateWorkspace in c, buildTarget in c, unityPackageDefinitions in c, target, normalizedName, streams) map {
-    (generatedWorkspaceDir, buildTarget, packageDefinitions, targetDir, normName, s) => {
+    (generateWorkspace in c, buildTarget in c, unityPackageSourceDirectories in c, target, normalizedName, streams) map {
+    (generatedWorkspaceDir, buildTarget, packageDirectories, targetDir, normName, s) => {
       // Build player
       if (buildTarget != UnityWrapper.BuildTarget.None) {
         val targetDirectory = targetDir / s"${buildTarget}/${normName}";
@@ -76,8 +76,8 @@ object UnityPlugin extends sbt.Plugin{
       }
 
       // Build Unity Packages
-      if (packageDefinitions.size > 0) {
-        UnityWrapper.buildUnityPackage(generatedWorkspaceDir, targetDir / "unity_packages", packageDefinitions, s.log);
+      if (packageDirectories.size > 0) {
+        UnityWrapper.buildUnityPackage(generatedWorkspaceDir, targetDir / s"${normName}.unitypackage", packageDirectories, s.log);
       }
       else {
         s.log.info("Skipping Unity package build");
