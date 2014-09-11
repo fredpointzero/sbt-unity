@@ -15,7 +15,7 @@ object UnityPlugin extends sbt.Plugin{
   object UnityKeys {
     val buildTarget = SettingKey[UnityWrapper.BuildTarget.Value]("build-target", "Target platform for the build")
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
-    val importPackage = TaskKey[Unit]("import-package", "Import a unity package in the project")
+    val importUnityPackage = TaskKey[Unit]("import-unity-package", "Import a unity package in the project")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unityPackageSourceDirectories = SettingKey[Seq[String]]("unity-package-source-directories", "Define the Unity relative directories to export as Unity package")
     val unitySource = SettingKey[Seq[File]]("unity-source", "Default Unity source directories")
@@ -23,27 +23,24 @@ object UnityPlugin extends sbt.Plugin{
 
   def unitySettings: Seq[Setting[_]] =
     inConfig(Compile)(unitySettings0 ++ Seq(
-      (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      (sourceDirectories in Compile) += (sourceDirectory in Compile).value / SETTINGS_FOLDER_NAME,
-      (unitySource in Compile) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      (unitySource in Compile) += (sourceDirectory in Compile).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Compile <<= generateWorkspaceTaskById("Build", Compile),
-      compile in Compile <<= compileTaskIn(Compile)
+      compile in Compile <<= compileTaskIn(Compile),
+      importUnityPackage in Compile <<= importPackageTaskIn(Compile)
     )) ++
     inConfig(Test)(unitySettings0 ++ Seq(
       (sourceDirectories in Test) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      (sourceDirectories in Test) += (sourceDirectory in Test).value / SOURCES_FOLDER_NAME,
-      (sourceDirectories in Test) += (sourceDirectory in Test).value / SETTINGS_FOLDER_NAME,
       (unitySource in Test) += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      (unitySource in Test) += (sourceDirectory in Test).value / SOURCES_FOLDER_NAME,
-      (unitySource in Test) += (sourceDirectory in Test).value / SETTINGS_FOLDER_NAME,
       generateWorkspace in Test <<= generateWorkspaceTaskById("Build", Test),
-      compile in Test <<= compileTaskIn(Test)
+      compile in Test <<= compileTaskIn(Test),
+      importUnityPackage in Test <<= importPackageTaskIn(Test)
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
     unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    buildTarget := UnityWrapper.BuildTarget.None
+    buildTarget := UnityWrapper.BuildTarget.None,
+    unityPackageSourceDirectories := Seq(),
+    unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
+    sourceDirectories ++= Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME)
   );
 
   def extractSourceDirectoryContext(path:File):String =
@@ -67,10 +64,12 @@ object UnityPlugin extends sbt.Plugin{
     }
   }
 
-  private def importPackageIn(c:Configuration) =
-    (generateWorkspace in c) map {
-      (workspaceDir) => {
-
+  private def importPackageTaskIn(c:Configuration) =
+    (generateWorkspace in c, resources in c, target in c, streams) map {
+      (workspaceDir, resourceFiles, targetDir, s) => {
+        for (packageFile <- resourceFiles.filter(f => f.ext == "unitypackage")) {
+          UnityWrapper.importPackage(workspaceDir, targetDir / s"import-${packageFile.name}.log", packageFile, s.log);
+        }
       }
     }
 
