@@ -113,7 +113,7 @@ object UnityWrapper {
     }
   }
 
-  def buildUnityPackage(projectPath: File, targetFile:File, sourceDirectories:Seq[String], log:Logger) = {
+  def buildUnityPackage(projectPath: File, targetFile:File, logFile:File, sourceDirectories:Seq[String], log:Logger) = {
 
     val executable = detectUnityExecutable;
     log.info(s"Using $executable");
@@ -139,11 +139,29 @@ object UnityWrapper {
       }
     }
 
-    val logFile = file(s"${targetFile}.log");
     val result = (commonCmd ++ (sourceDirectories :+ targetFile.toString()) ++ Seq("-logFile", logFile.toString())) !;
 
     if(result != 0) {
       throw new RuntimeException(s"Could not build Unity package (see $logFile)");
+    }
+  }
+
+  def importPackage(projectPath:File, logFile:File, packageFile:File, log:Logger): Unit = {
+    val executable = detectUnityExecutable;
+    log.info(s"Using $executable");
+
+    val result = List(
+      executable.getAbsolutePath(),
+      "-batchMode",
+      "-quit",
+      "-projectPath ",
+      projectPath.getAbsolutePath(),
+      "-importPackage",
+      packageFile.getAbsolutePath()
+    ) !;
+
+    if(result != 0) {
+      throw new RuntimeException(s"Could not import Unity package $packageFile (see $logFile)");
     }
   }
 
