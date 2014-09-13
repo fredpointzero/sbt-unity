@@ -2,5 +2,7 @@
 > test:generateWorkspace
 
 # Check if the symbolic link was created
-> checkSymlink
-> checkUnityProject
+> isSymlink target/test-workspace/Assets/generate-test-workspace
+> isSymlink target/test-workspace/Assets/generate-test-workspace_test
+$ exists target/test-workspace/Library
+$ exists target/test-workspace/ProjectSettings

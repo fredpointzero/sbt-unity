@@ -68,14 +68,18 @@ object UnityPlugin extends sbt.Plugin{
     unmanagedSourceDirectories := unitySource.value,
 
     // Workspace
-    workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
+    workspaceDirectory := target.value / "workspace",
     generateWorkspace := generateWorkspaceTask.value
   )) ++ inConfig(Test)(Seq(
-    unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
+    unitySource := Seq(
+      sourceDirectory.value / SOURCES_FOLDER_NAME,
+      (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
+      sourceDirectory.value / SETTINGS_FOLDER_NAME
+    ),
     unmanagedSourceDirectories := unitySource.value,
 
     // Workspace
-    workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
+    workspaceDirectory := target.value / "test-workspace",
     generateWorkspace := generateWorkspaceTask.value
   ))
 
