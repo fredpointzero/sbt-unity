@@ -1,2 +1,14 @@
 > compile:generateWorkspace
-> checkSettingFolder
+> isSymlink target/workspace/ProjectSettings/AudioManager.asset
+> isSymlink target/workspace/ProjectSettings/DynamicManager.asset
+> isSymlink target/workspace/ProjectSettings/EditorBuildSettings.asset
+> isSymlink target/workspace/ProjectSettings/EditorSettings.asset
+> isSymlink target/workspace/ProjectSettings/GraphicsSettings.asset
+> isSymlink target/workspace/ProjectSettings/InputManager.asset
+> isSymlink target/workspace/ProjectSettings/NavMeshLayers.asset
+> isSymlink target/workspace/ProjectSettings/NetworkManager.asset
+> isSymlink target/workspace/ProjectSettings/Physics2DSettings.asset
+> isSymlink target/workspace/ProjectSettings/ProjectSettings.asset
+> isSymlink target/workspace/ProjectSettings/QualitySettings.asset
+> isSymlink target/workspace/ProjectSettings/TagManager.asset
+> isSymlink target/workspace/ProjectSettings/TimeManager.asset

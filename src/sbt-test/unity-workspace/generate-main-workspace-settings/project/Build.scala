@@ -1,17 +1,17 @@
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 
-import sbt.Keys._
 import sbt._
+import sbt.complete.Parsers._
 
 object TestBuild extends Build {
-  val checkSettingFolder = taskKey[Unit]("Check symlinking of settings file")
+  val isSymlink = inputKey[Unit]("Check symlink of the runtime_resources folder")
 
   def testSettings:Seq[Setting[_]] = Seq(
-    checkSettingFolder := {
-      for (settingFile <- ((sourceDirectory in Compile).value / "unity_settings").listFiles("*.asset")) {
-        val linkedTarget = target.value / s"/workspace/ProjectSettings/${settingFile.name}";
-        if(!Files.isSymbolicLink(linkedTarget toPath)) {
-          sys.error(s"$linkedTarget is not a symbolic link");
+    isSymlink := {
+      for(pathString:String <- spaceDelimited("<paths>").parsed) {
+        val path = Paths.get(pathString);
+        if(!Files.isSymbolicLink(path)) {
+          sys.error(s"$path is not a symbolic link");
         }
       }
     }
