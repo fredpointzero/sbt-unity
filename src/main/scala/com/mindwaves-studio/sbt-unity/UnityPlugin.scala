@@ -106,6 +106,15 @@ object UnityPlugin extends sbt.Plugin{
         case Pipeline.UnityPackage => throw new RuntimeException("Cannot run a Unity package");
         case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
       }
+    },
+    sbt.Keys.test := {
+      unityPipeline.value match {
+        case Pipeline.UnityPlayer | Pipeline.UnityPackage => {
+          val x1 = compile.value;
+          streams.value.log.error("test are not implemented");
+        }
+        case _ => throw new RuntimeException(s"Unknown pipeline: $unityPipeline")
+      }
     }
   );
 
@@ -143,7 +152,7 @@ object UnityPlugin extends sbt.Plugin{
         if(!crossTarget.value.exists()) {
           crossTarget.value.mkdirs();
         }
-        val x1 = importUnmanagedUnityPackages.value;
+        val x1 = generateWorkspace.value;
         UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
       }
       case Pipeline.UnityPackage => {
@@ -200,6 +209,8 @@ object UnityPlugin extends sbt.Plugin{
         }
       }
     }
+
+    val x1 = importUnmanagedUnityPackages.value;
 
     workspaceDirectory.value;
   }
