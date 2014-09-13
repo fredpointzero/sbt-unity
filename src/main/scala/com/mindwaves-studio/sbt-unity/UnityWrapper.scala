@@ -161,6 +161,7 @@ object UnityWrapper {
   private val WindowsPattern = "(.*win.*)".r;
   private val OSXPattern = "(.*mac.*)".r
   private val platformMapping = Map(
+    (TargetPlatform.None, ("", null)),
     (TargetPlatform.Linux32, ("buildLinux32Player", null)),
     (TargetPlatform.Linux64, ("buildLinux64Player", null)),
     (TargetPlatform.LinuxUniversal, ("buildLinuxUniversalPlayer", null)),
