@@ -12,11 +12,6 @@ import sbt.inc.Analysis
 object UnityPlugin extends sbt.Plugin{
   import UnityKeys._
 
-  object Pipeline extends Enumeration {
-    type Pipeline = Value;
-    val UnityPlayer, UnityPackage, None = Value;
-  }
-
   object UnityKeys {
     // Paths
     val unitySource = SettingKey[Seq[File]]("unity-source", "Default Unity source directories")
@@ -28,21 +23,56 @@ object UnityPlugin extends sbt.Plugin{
     // Unity Options
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
-    val unityPipeline = SettingKey[Pipeline.Value]("unity-pipeline", "Pipeline to use")
   }
 
-  def unitySettings: Seq[Setting[_]] = unitySettings0 ++
-    inConfig(Test)(Seq(
-      unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME
-    ))
-
-  private def unitySettings0: Seq[Setting[_]] = Seq(
-    // Paths
+  def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
+    // Cross building
     crossTarget := target.value / crossPlatform.value.toString(),
+    crossPlatform := UnityWrapper.TargetPlatform.None,
+
+    // Tasks
+    products <<= Def.task { crossTarget.value :: Nil },
+    compile := {
+      if(!crossTarget.value.exists()) {
+        crossTarget.value.mkdirs();
+      }
+      val x1 = generateWorkspace.value;
+      UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
+      Analysis.Empty;
+    },
+    artifact := { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); },
+    run := {
+      val x1 = compile.value;
+      val executable = crossTarget.value / (normalizedName.value + UnityWrapper.extensionForPlatform(crossPlatform.value));
+      executable.toString() !;
+    }
+  )
+
+  def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
+    // Tasks
+    products <<= Def.task { Nil },
+    compile := {
+      val x1 = generateWorkspace.value;
+      Analysis.Empty;
+    },
+    artifact := { Artifact.apply(name.value, "unitypackage", "unitypackage", s"${configuration}"); },
+    packageBin in Compile := {
+      val x1 = generateWorkspace.value;
+      UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), (mappings.in(Compile, packageBin)).value map { a => a._2 }, streams.value.log);
+      artifactPath.value;
+    },
+    skip in run := true
+  )
+
+  private def unityCommonSettings: Seq[Setting[_]] = Seq(
+    // Paths
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
 
-    // Workspace options
+    // Unity options
+    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
+
+    // Workspace
     workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
     generateWorkspace := {
       val assetDirectory = workspaceDirectory.value / "Assets";
@@ -97,87 +127,10 @@ object UnityPlugin extends sbt.Plugin{
       }
 
       workspaceDirectory.value;
-    },
-
-    // Unity Options
-    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    unityPipeline := Pipeline.None,
-
-    // Build Player Options
-    crossPlatform := UnityWrapper.TargetPlatform.None,
-    products <<= Def.task {
-      unityPipeline match {
-        case Pipeline.UnityPlayer => crossTarget.value :: Nil;
-        case Pipeline.UnityPackage => Nil;
-        case _ => throw new RuntimeException(s"Unmanaged pipeline: $unityPipeline");
-      }
-    },
-
-    // Standard task
-    compile := {
-      unityPipeline.value match {
-        case Pipeline.UnityPlayer => {
-          if(!crossTarget.value.exists()) {
-            crossTarget.value.mkdirs();
-          }
-          val x1 = generateWorkspace.value;
-          UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
-        }
-        case Pipeline.UnityPackage => {
-        }
-        case _ => throw new RuntimeException(s"Unknown pipeline: $unityPipeline")
-      }
-
-      Analysis.Empty
-    },
-    artifact := {
-      unityPipeline match {
-        case Pipeline.UnityPlayer => Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform");
-        case Pipeline.UnityPackage => Artifact.apply(name.value, "unitypackage", "unitypackage", s"${configuration}");
-        case _ => throw new RuntimeException(s"Unmanaged pipeline: $unityPipeline");
-      }
-    },
-    artifactPath := {
-      target.value / artifactName.value(ScalaVersion("", ""), null, artifact.value);
-    },
-    artifactName := { (scalaVersion, moduleId, artifact) => {
-      unityPipeline match {
-        case Pipeline.UnityPlayer | Pipeline.UnityPackage => artifact toString;
-        case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
-      }
-    } },
-    packageBin in Compile :=  {
-      unityPipeline match {
-        case Pipeline.UnityPlayer => (packageBin in Compile).value;
-        case Pipeline.UnityPackage => {
-          val x1 = generateWorkspace.value;
-          UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), (mappings.in(Compile, packageBin)).value map { a => a._2 }, streams.value.log);
-          artifactPath.value;
-        }
-        case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
-      }
-    },
-    run := {
-      unityPipeline match {
-        case Pipeline.UnityPlayer => {
-          val x1 = compile.value;
-          val executable = crossTarget.value / (normalizedName.value + UnityWrapper.extensionForPlatform(crossPlatform.value));
-          executable.toString() !;
-        };
-        case Pipeline.UnityPackage => throw new RuntimeException("Cannot run a Unity package");
-        case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
-      }
-    },
-    sbt.Keys.test := {
-      unityPipeline.value match {
-        case Pipeline.UnityPlayer | Pipeline.UnityPackage => {
-          val x1 = compile.value;
-          streams.value.log.error("test are not implemented");
-        }
-        case _ => throw new RuntimeException(s"Unknown pipeline: $unityPipeline")
-      }
     }
-  );
+  ) ++ inConfig(Test)(Seq(
+    unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME
+  ))
 
   def extractSourceDirectoryContext(path:File):String =
     extractAnyDirectoryContext(path, SOURCES_FOLDER_NAME);
