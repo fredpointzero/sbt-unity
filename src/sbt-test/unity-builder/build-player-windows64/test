@@ -1,5 +1,0 @@
-# Build Windows 64 bit player
-> set UnityKeys.buildTarget in Compile := com.mindwaves_studio.sbt_unity.UnityWrapper.BuildTarget.Windows64
-> compile
-$ exists target/Windows64/build-player-windows64.exe
-$ exists target/Windows64/build-player-windows64.exe

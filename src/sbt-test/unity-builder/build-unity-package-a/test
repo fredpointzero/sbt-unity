@@ -1,3 +1,0 @@
-# Build Unity Package
-> compile
-$ exists target/build-unity-package-a.unitypackage

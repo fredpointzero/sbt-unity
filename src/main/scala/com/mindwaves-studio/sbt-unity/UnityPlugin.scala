@@ -19,7 +19,6 @@ object UnityPlugin extends sbt.Plugin{
 
   object UnityKeys {
     // Paths
-    val unityPackageSourceDirectories = SettingKey[Seq[String]]("unity-package-source-directories", "Define the Unity relative directories to export as Unity package")
     val unitySource = SettingKey[Seq[File]]("unity-source", "Default Unity source directories")
     val workspaceDirectory = SettingKey[File]("workspace-directory", "Directory of the Unity workspace")
 
@@ -44,7 +43,6 @@ object UnityPlugin extends sbt.Plugin{
     crossTarget := target.value / crossPlatform.value.toString(),
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories ++= unitySource.value,
-    unityPackageSourceDirectories := Seq(),
 
     // Workspace options
     workspaceDirectory := target.value / (Defaults.prefix(configuration.value.name) + "workspace"),
@@ -178,7 +176,8 @@ object UnityPlugin extends sbt.Plugin{
     for (sourceDir <- unitySource.value) {
       val sourcesContext = extractSourceDirectoryContext(sourceDir);
       if (sourcesContext != null) {
-        val linkedDirectory = assetDirectory / s"${normalizedName.value}_${sourcesContext}";
+        val suffix = if (sourcesContext == "main") "" else s"_${sourcesContext}";
+        val linkedDirectory = assetDirectory / s"${normalizedName.value}$suffix";
         // Replace the target and create the symlink
         if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
           streams.value.log.info(s"Replacing directory $linkedDirectory by a symlink");

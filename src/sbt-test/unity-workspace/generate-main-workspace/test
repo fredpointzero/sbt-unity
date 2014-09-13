@@ -1,0 +1,6 @@
+# Generate the workspace
+> compile:generateWorkspace
+
+# Check if the symbolic link was created
+> checkSymlink
+> checkUnityProject

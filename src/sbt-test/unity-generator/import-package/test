@@ -1,4 +1,0 @@
-# Import package
-> importUnityPackage
-$ exists target/unityBuildcompileWorkspace/Assets/Test.cs
-$ exists target/unityBuildcompileWorkspace/Assets/Test.cs.meta

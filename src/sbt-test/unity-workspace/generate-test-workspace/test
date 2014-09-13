@@ -1,0 +1,6 @@
+# Generate the workspace
+> test:generateWorkspace
+
+# Check if the symbolic link was created
+> checkSymlink
+> checkUnityProject

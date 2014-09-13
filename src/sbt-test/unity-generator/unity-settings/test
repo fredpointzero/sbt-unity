@@ -1,7 +1,0 @@
-# Generate the workspace
-> compile:generateWorkspace
-> test:generateWorkspace
-
-# Check symlinking of settings
-> compile:checkSettingFolder
-> test:checkSettingFolder
