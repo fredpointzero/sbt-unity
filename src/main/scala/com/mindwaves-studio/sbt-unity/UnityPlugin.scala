@@ -26,13 +26,9 @@ object UnityPlugin extends sbt.Plugin{
     // Tasks
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
     val importUnmanagedUnityPackages = TaskKey[Unit]("import-unmanaged-unity-package", "Import unmanaged Unity packages")
-    val buildUnityPlayer = TaskKey[File]("build-unity-player", "Build players")
-    val runUnityPlayer = TaskKey[Unit]("run-unity-player", "Run Unity player")
-    val packageUnityPlayer = TaskKey[File]("package-unity-player", "Package a Unity player")
-    val packageUnityPackage = TaskKey[File]("package-unity-package", "Package a Unity package")
 
     // Unity Options
-    val crossPlatform = SettingKey[UnityWrapper.BuildTarget.Value]("cross-platform", "Target platform for the build")
+    val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unityPipeline = SettingKey[Pipeline.Value]("unity-pipeline", "Pipeline to use")
   }
@@ -60,7 +56,7 @@ object UnityPlugin extends sbt.Plugin{
     unityPipeline := Pipeline.None,
 
     // Build Player Options
-    crossPlatform := UnityWrapper.BuildTarget.None,
+    crossPlatform := UnityWrapper.TargetPlatform.None,
     products <<= Def.task {
       unityPipeline match {
         case Pipeline.UnityPlayer => crossTarget.value :: Nil;
@@ -72,15 +68,21 @@ object UnityPlugin extends sbt.Plugin{
     // Standard task
     compile := compileTask,
     artifact := {
-      //TODO: define artifact
-      streams.value.log.error("artifact not implemented");
-      artifact.value
+      unityPipeline match {
+        case Pipeline.UnityPlayer => Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform");
+        case Pipeline.UnityPackage => Artifact.apply(name.value, "unitypackage", "unitypackage", s"${configuration}");
+        case _ => throw new RuntimeException(s"Unmanaged pipeline: $unityPipeline");
+      }
     },
     artifactPath := {
-      //TODO: define artifact path
-      streams.value.log.error("artifactPath not implemented");
-      artifactPath.value
+      target.value / artifactName.value(ScalaVersion(scalaVersion.value, scalaBinaryVersion.value), moduleID.value, artifact.value);
     },
+    artifactName := { (scalaVersion, moduleId, artifact) => {
+      unityPipeline match {
+        case Pipeline.UnityPlayer | Pipeline.UnityPackage => artifact toString;
+        case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
+      }
+    } },
     packageBin :=  {
       //TODO: create a unitypackage or standard package for unity player
       unityPipeline match {
@@ -93,6 +95,17 @@ object UnityPlugin extends sbt.Plugin{
         case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
       }
       packageBin.value
+    },
+    run := {
+      unityPipeline match {
+        case Pipeline.UnityPlayer => {
+          val x1 = compile.value;
+          val executable = crossTarget.value / (normalizedName.value + UnityWrapper.extensionForPlatform(crossPlatform.value));
+          executable.toString() !;
+        };
+        case Pipeline.UnityPackage => throw new RuntimeException("Cannot run a Unity package");
+        case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
+      }
     }
   );
 
