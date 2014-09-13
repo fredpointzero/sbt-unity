@@ -65,7 +65,7 @@ object UnityWrapper {
     }
   }
 
-  def buildUnityPlayer(projectPath: File, logFile: File, targetPlatform:BuildTarget.Value, targetDirectory:File, log:Logger) = {
+  def buildUnityPlayer(projectPath: File, logFile: File, targetPlatform:BuildTarget.Value, targetFile:File, log:Logger) = {
     val buildCapabilities = getBuildTargetCapabilitiesFromOS(System.getProperty("os.name"));
     if (!buildCapabilities.contains(targetPlatform)) {
       throw new IllegalArgumentException(s"Target platform $targetPlatform is not supported on this OS");
@@ -85,12 +85,12 @@ object UnityWrapper {
       case _ => throw new IllegalArgumentException(s"Unmanaged build target: $targetPlatform");
     }
 
-    val parentDir = file(targetDirectory.getParent());
+    val parentDir = file(targetFile.getParent());
     if (!parentDir.exists()) {
       parentDir.mkdirs();
     }
 
-    var targetPath = targetDirectory.getAbsolutePath();
+    var targetPath = targetFile.getAbsolutePath();
     if (ext != null && !targetPath.endsWith(ext)) {
       targetPath += s".$ext";
     }
