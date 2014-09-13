@@ -1,6 +1,9 @@
 # Generate the workspace
+$ pause
 > compile:generateWorkspace
 
 # Check if the symbolic link was created
-> checkSymlink
-> checkUnityProject
+$ pause
+> isSymlink target/workspace/Assets/generate-main-workspace
+> exists target/workspace/Library
+> exists target/workspace/ProjectSettings
