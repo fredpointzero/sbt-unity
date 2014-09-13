@@ -31,17 +31,17 @@ object UnityPlugin extends sbt.Plugin{
   ) ++ inConfig(Compile)(Seq(
     crossTarget := target.value / crossPlatform.value.toString(),
 
-    compile := compileTask,
+    compile := compileTask.value,
     products <<= productsTask,
-    artifact := artifactSetting,
-    run := runTask
+    artifact := artifactSetting.value,
+    run := runTask.value
   )) ++ inConfig(Test)(Seq(
     crossTarget := target.value / crossPlatform.value.toString(),
 
-    compile := compileTask,
+    compile := compileTask.value,
     products <<= productsTask,
-    artifact := artifactSetting,
-    run := runTask
+    artifact := artifactSetting.value,
+    run := runTask.value
   ))
 
   def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -69,14 +69,14 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace
     workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
-    generateWorkspace := generateWorkspaceTask
+    generateWorkspace := generateWorkspaceTask.value
   )) ++ inConfig(Test)(Seq(
     unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
     unmanagedSourceDirectories := unitySource.value,
 
     // Workspace
     workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
-    generateWorkspace := generateWorkspaceTask
+    generateWorkspace := generateWorkspaceTask.value
   ))
 
   def extractSourceDirectoryContext(path:File):String =
@@ -100,17 +100,17 @@ object UnityPlugin extends sbt.Plugin{
     }
   }
 
-  private def artifactSetting = { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
+  private def artifactSetting = Def.setting { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
 
   private def productsTask = Def.task { Seq(crossTarget.value) }
 
-  private def runTask = {
+  private def runTask = Def.task {
     val x1 = compile.value;
     val executable = crossTarget.value / (normalizedName.value + UnityWrapper.extensionForPlatform(crossPlatform.value));
     executable.toString() !;
   }
 
-  private def compileTask = {
+  private def compileTask = Def.task {
     if(!crossTarget.value.exists()) {
       crossTarget.value.mkdirs();
     }
@@ -119,7 +119,7 @@ object UnityPlugin extends sbt.Plugin{
     Analysis.Empty;
   }
 
-  private def generateWorkspaceTask = {
+  private def generateWorkspaceTask = Def.task {
     val assetDirectory = workspaceDirectory.value / "Assets";
     // Make directories if necessary
     if (!assetDirectory.exists()) {
