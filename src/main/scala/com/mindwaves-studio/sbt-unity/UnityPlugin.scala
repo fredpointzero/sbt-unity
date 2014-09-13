@@ -34,8 +34,8 @@ object UnityPlugin extends sbt.Plugin{
 
   def unitySettings: Seq[Setting[_]] = unitySettings0 ++
     inConfig(Test)(Seq(
-      unmanagedSourceDirectories += (unmanagedSourceDirectories in Compile).value / SOURCES_FOLDER_NAME,
-      unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME
+      unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
+      unmanagedSourceDirectories ++= unitySource.value
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
@@ -46,8 +46,64 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace options
     workspaceDirectory := target.value / (Defaults.prefix(configuration.value.name) + "workspace"),
-    importUnmanagedUnityPackages := importUnmanagedUnityPackageTask,
-    generateWorkspace := generateWorkspaceTask,
+    importUnmanagedUnityPackages := {
+      val x1 = generateWorkspace.value;
+      for (packageFile:File <- unmanagedBase.value.filter(f => f.ext == "unitypackage").get) {
+        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
+      }
+    },
+    generateWorkspace := {
+      val assetDirectory = workspaceDirectory.value / "Assets";
+      // Make directories if necessary
+      if (!assetDirectory.exists()) {
+        assetDirectory.mkdirs();
+      }
+
+      // Create the Unity project
+      if (!(workspaceDirectory.value / "Library").exists()) {
+        UnityWrapper.createUnityProjectAt(workspaceDirectory.value, target.value / s"${workspaceDirectory.value}.log", streams.value.log);
+      }
+
+      for (sourceDir <- unitySource.value) {
+        val sourcesContext = extractSourceDirectoryContext(sourceDir);
+        if (sourcesContext != null) {
+          val suffix = if (sourcesContext == "main") "" else s"_${sourcesContext}";
+          val linkedDirectory = assetDirectory / s"${normalizedName.value}$suffix";
+          // Replace the target and create the symlink
+          if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
+            streams.value.log.info(s"Replacing directory $linkedDirectory by a symlink");
+            linkedDirectory.delete();
+          }
+          if (!linkedDirectory.exists()) {
+            if(sourceDir.exists()) {
+              Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+            }
+            else {
+              streams.value.log.info(s"Skipping $linkedDirectory because $sourceDir does not exists");
+            }
+          }
+          else {
+            streams.value.log.info(s"Skipping $linkedDirectory as it already exists");
+          }
+        }
+
+        val settingsContext = extractSettingsDirectoryContext(sourceDir);
+        if (settingsContext != null && sourceDir.exists()) {
+          for(settingFile <- sourceDir.listFiles("*.asset")) {
+            val targetLink = workspaceDirectory.value / "ProjectSettings" / settingFile.name;
+            if(targetLink.exists()) {
+              streams.value.log.info(s"Deleting existing setting: $targetLink");
+              targetLink.delete();
+            }
+            Files.createSymbolicLink(targetLink toPath, settingFile toPath);
+          }
+        }
+      }
+
+      val x1 = importUnmanagedUnityPackages.value;
+
+      workspaceDirectory.value;
+    },
 
     // Unity Options
     unityEditorExecutable := UnityWrapper.detectUnityExecutable,
@@ -64,7 +120,22 @@ object UnityPlugin extends sbt.Plugin{
     },
 
     // Standard task
-    compile := compileTask,
+    compile := {
+      unityPipeline.value match {
+        case Pipeline.UnityPlayer => {
+          if(!crossTarget.value.exists()) {
+            crossTarget.value.mkdirs();
+          }
+          val x1 = generateWorkspace.value;
+          UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
+        }
+        case Pipeline.UnityPackage => {
+        }
+        case _ => throw new RuntimeException(s"Unknown pipeline: $unityPipeline")
+      }
+
+      Analysis.Empty
+    },
     artifact := {
       unityPipeline match {
         case Pipeline.UnityPlayer => Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform");
@@ -82,7 +153,6 @@ object UnityPlugin extends sbt.Plugin{
       }
     } },
     packageBin :=  {
-      //TODO: create a unitypackage or standard package for unity player
       unityPipeline match {
         case Pipeline.UnityPlayer => packageBin.value;
         case Pipeline.UnityPackage => {
@@ -135,82 +205,5 @@ object UnityPlugin extends sbt.Plugin{
     else {
       return null;
     }
-  }
-
-  private def importUnmanagedUnityPackageTask = {
-      val x1 = generateWorkspace.value;
-      for (packageFile:File <- unmanagedBase.value.filter(f => f.ext == "unitypackage")) {
-        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
-      }
-    }
-
-  private def compileTask = {
-    unityPipeline.value match {
-      case Pipeline.UnityPlayer => {
-        if(!crossTarget.value.exists()) {
-          crossTarget.value.mkdirs();
-        }
-        val x1 = generateWorkspace.value;
-        UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
-      }
-      case Pipeline.UnityPackage => {
-      }
-      case _ => throw new RuntimeException(s"Unknown pipeline: $unityPipeline")
-    }
-
-    Analysis.Empty
-    }
-
-  private def generateWorkspaceTask = {
-    val assetDirectory = workspaceDirectory.value / "Assets";
-    // Make directories if necessary
-    if (!assetDirectory.exists()) {
-      assetDirectory.mkdirs();
-    }
-
-    // Create the Unity project
-    if (!(workspaceDirectory.value / "Library").exists()) {
-      UnityWrapper.createUnityProjectAt(workspaceDirectory.value, target.value / s"${workspaceDirectory.value}.log", streams.value.log);
-    }
-
-    for (sourceDir <- unitySource.value) {
-      val sourcesContext = extractSourceDirectoryContext(sourceDir);
-      if (sourcesContext != null) {
-        val suffix = if (sourcesContext == "main") "" else s"_${sourcesContext}";
-        val linkedDirectory = assetDirectory / s"${normalizedName.value}$suffix";
-        // Replace the target and create the symlink
-        if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
-          streams.value.log.info(s"Replacing directory $linkedDirectory by a symlink");
-          linkedDirectory.delete();
-        }
-        if (!linkedDirectory.exists()) {
-          if(sourceDir.exists()) {
-            Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
-          }
-          else {
-            streams.value.log.info(s"Skipping $linkedDirectory because $sourceDir does not exists");
-          }
-        }
-        else {
-          streams.value.log.info(s"Skipping $linkedDirectory as it already exists");
-        }
-      }
-
-      val settingsContext = extractSettingsDirectoryContext(sourceDir);
-      if (settingsContext != null && sourceDir.exists()) {
-        for(settingFile <- sourceDir.listFiles("*.asset")) {
-          val targetLink = workspaceDirectory.value / "ProjectSettings" / settingFile.name;
-          if(targetLink.exists()) {
-            streams.value.log.info(s"Deleting existing setting: $targetLink");
-            targetLink.delete();
-          }
-          Files.createSymbolicLink(targetLink toPath, settingFile toPath);
-        }
-      }
-    }
-
-    val x1 = importUnmanagedUnityPackages.value;
-
-    workspaceDirectory.value;
   }
 }
