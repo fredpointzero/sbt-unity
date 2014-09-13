@@ -24,7 +24,6 @@ object UnityPlugin extends sbt.Plugin{
 
     // Tasks
     val generateWorkspace = TaskKey[File]("generate-workspace", "Generate a Unity workspace")
-    val importUnmanagedUnityPackages = TaskKey[Unit]("import-unmanaged-unity-package", "Import unmanaged Unity packages")
 
     // Unity Options
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
@@ -45,12 +44,6 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace options
     workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
-    importUnmanagedUnityPackages := {
-      val x1 = generateWorkspace.value;
-      for (packageFile:File <- unmanagedBase.value.filter(f => f.ext == "unitypackage").get) {
-        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
-      }
-    },
     generateWorkspace := {
       val assetDirectory = workspaceDirectory.value / "Assets";
       // Make directories if necessary
@@ -99,7 +92,9 @@ object UnityPlugin extends sbt.Plugin{
         }
       }
 
-      val x1 = importUnmanagedUnityPackages.value;
+      for (packageFile:File <- unmanagedBase.value.filter(f => f.ext == "unitypackage").get) {
+        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
+      }
 
       workspaceDirectory.value;
     },
