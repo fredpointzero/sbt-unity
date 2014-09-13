@@ -34,18 +34,17 @@ object UnityPlugin extends sbt.Plugin{
 
   def unitySettings: Seq[Setting[_]] = unitySettings0 ++
     inConfig(Test)(Seq(
-      unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      unmanagedSourceDirectories ++= unitySource.value
+      unitySource += (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME
     ))
 
   private def unitySettings0: Seq[Setting[_]] = Seq(
     // Paths
     crossTarget := target.value / crossPlatform.value.toString(),
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
-    unmanagedSourceDirectories ++= unitySource.value,
+    unmanagedSourceDirectories := unitySource.value,
 
     // Workspace options
-    workspaceDirectory := target.value / (Defaults.prefix(configuration.value.name) + "workspace"),
+    workspaceDirectory := target.value / (/*Defaults.prefix(configuration.value.name) + */"workspace"),
     importUnmanagedUnityPackages := {
       val x1 = generateWorkspace.value;
       for (packageFile:File <- unmanagedBase.value.filter(f => f.ext == "unitypackage").get) {
@@ -144,7 +143,7 @@ object UnityPlugin extends sbt.Plugin{
       }
     },
     artifactPath := {
-      target.value / artifactName.value(ScalaVersion(scalaVersion.value, scalaBinaryVersion.value), moduleID.value, artifact.value);
+      target.value / artifactName.value(ScalaVersion("", ""), null, artifact.value);
     },
     artifactName := { (scalaVersion, moduleId, artifact) => {
       unityPipeline match {
@@ -152,17 +151,16 @@ object UnityPlugin extends sbt.Plugin{
         case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
       }
     } },
-    packageBin :=  {
+    packageBin in Compile :=  {
       unityPipeline match {
-        case Pipeline.UnityPlayer => packageBin.value;
+        case Pipeline.UnityPlayer => (packageBin in Compile).value;
         case Pipeline.UnityPackage => {
           val x1 = generateWorkspace.value;
-          UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), mappings.value map { a => a._2 }, streams.value.log);
+          UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), (mappings.in(Compile, packageBin)).value map { a => a._2 }, streams.value.log);
           artifactPath.value;
         }
         case _ => throw new RuntimeException(s"Unmanaged pipeline $unityPipeline");
       }
-      packageBin.value
     },
     run := {
       unityPipeline match {
