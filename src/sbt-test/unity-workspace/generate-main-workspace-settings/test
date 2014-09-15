@@ -1,6 +1,6 @@
 > compile:generateWorkspace
 > isSymlink target/workspace/ProjectSettings/AudioManager.asset
-> isSymlink target/workspace/ProjectSettings/DynamicManager.asset
+> isSymlink target/workspace/ProjectSettings/DynamicsManager.asset
 > isSymlink target/workspace/ProjectSettings/EditorBuildSettings.asset
 > isSymlink target/workspace/ProjectSettings/EditorSettings.asset
 > isSymlink target/workspace/ProjectSettings/GraphicsSettings.asset

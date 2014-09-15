@@ -1,6 +1,6 @@
 > test:generateWorkspace
 > isSymlink target/test-workspace/ProjectSettings/AudioManager.asset
-> isSymlink target/test-workspace/ProjectSettings/DynamicManager.asset
+> isSymlink target/test-workspace/ProjectSettings/DynamicsManager.asset
 > isSymlink target/test-workspace/ProjectSettings/EditorBuildSettings.asset
 > isSymlink target/test-workspace/ProjectSettings/EditorSettings.asset
 > isSymlink target/test-workspace/ProjectSettings/GraphicsSettings.asset
