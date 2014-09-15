@@ -125,7 +125,7 @@ object UnityPlugin extends sbt.Plugin{
 
   private def runTask = Def.task {
     val x1 = compile.value;
-    val executable = crossTarget.value / (normalizedName.value + UnityWrapper.extensionForPlatform(crossPlatform.value));
+    val executable = crossTarget.value / (normalizedName.value + "." + UnityWrapper.extensionForPlatform(crossPlatform.value));
     executable.toString() !;
   }
 
