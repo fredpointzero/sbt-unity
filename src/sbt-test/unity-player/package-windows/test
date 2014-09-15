@@ -1,5 +1,7 @@
 # Package Windows 32 bit player
 > set UnityKeys.crossPlatform := com.mindwaves_studio.sbt_unity.UnityWrapper.TargetPlatform.Windows
-$ pause
 > package
-$ exists target/Windows/package-windows.zip
+$ exists target/Windows/package-windows_Windows-0.1.jar
+$ exec unzip target/Windows/package-windows_Windows-0.1.jar -d target/package-windows_Windows-0.1/
+$ exists target/package-windows_Windows-0.1/package-windows.exe
+$ exists target/package-windows_Windows-0.1/package-windows_Data

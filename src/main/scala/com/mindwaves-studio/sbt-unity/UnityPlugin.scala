@@ -62,7 +62,19 @@ object UnityPlugin extends sbt.Plugin{
 
   private def unityCommonSettings: Seq[Setting[_]] = Seq(
     // Unity options
-    unityEditorExecutable := UnityWrapper.detectUnityExecutable
+    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
+    artifactName := {
+      (scalaVersion:ScalaVersion, module:ModuleID, artifact:Artifact) => {
+        import artifact._
+        val classifierStr = classifier match { case None => ""; case Some(c) => "-" + c }
+        artifact.name + "_" + crossPlatform.value + "-" + module.revision + classifierStr + "." + artifact.extension
+      }
+    },
+  mappings.in(Compile, packageBin) <<= (mappings.in(Compile, packageBin), streams) map { (f, s) =>
+    s.log.warn(s"Mapping with ${f.size} file")
+    for((file, path) <- f) s.log.warn(s"$file -> $path");
+    f
+  }
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
@@ -106,7 +118,10 @@ object UnityPlugin extends sbt.Plugin{
 
   private def artifactSetting = Def.setting { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
 
-  private def productsTask = Def.task { Seq(crossTarget.value) }
+  private def productsTask = Def.task {
+    val x1 = compile.value;
+    Seq(crossTarget.value)
+  }
 
   private def runTask = Def.task {
     val x1 = compile.value;
