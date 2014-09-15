@@ -1,4 +1,5 @@
 # Package Windows 32 bit player
 > set UnityKeys.crossPlatform := com.mindwaves_studio.sbt_unity.UnityWrapper.TargetPlatform.Windows
+$ pause
 > package
-$ exists target/Windows/build-player-windows.zip
+$ exists target/Windows/package-windows.zip
