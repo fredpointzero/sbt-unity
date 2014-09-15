@@ -170,8 +170,8 @@ object UnityPlugin extends sbt.Plugin{
         }
       }
     }
-
-    for (packageFile:File <- unmanagedBase.value.filter(f => f.ext == "unitypackage").get) {
+    val packageFiles = unmanagedBase.value.listFiles.filter(_.ext == "unitypackage");
+    for (packageFile:File <- packageFiles) {
       UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
     }
 
