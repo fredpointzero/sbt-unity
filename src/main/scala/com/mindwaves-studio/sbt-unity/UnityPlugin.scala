@@ -170,9 +170,12 @@ object UnityPlugin extends sbt.Plugin{
         }
       }
     }
-    val packageFiles = unmanagedBase.value.listFiles.filter(_.ext == "unitypackage");
-    for (packageFile:File <- packageFiles) {
-      UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
+
+    val unmanagedLibFiles = unmanagedBase.value.listFiles;
+    if (unmanagedLibFiles != null)  {
+      for (packageFile:File <- unmanagedLibFiles.filter(_.ext == "unitypackage")) {
+        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
+      }
     }
 
     workspaceDirectory.value;
