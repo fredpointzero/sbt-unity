@@ -1,5 +1,5 @@
 # Build Windows 32 bit player
 > set UnityKeys.crossPlatform := com.mindwaves_studio.sbt_unity.UnityWrapper.TargetPlatform.Windows
 > compile
-$ exists target/Windows/build-player-windows.exe
-$ exists target/Windows/build-player-windows_Data
+$ exists target/Windows/build-windows.exe
+$ exists target/Windows/build-windows_Data
