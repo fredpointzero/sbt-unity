@@ -69,16 +69,18 @@ object UnityPlugin extends sbt.Plugin{
       compile := {
         val x1 = generateWorkspace.value;
         Analysis.Empty;
-      }
-    ) ++ inTask(packageBin)(Seq(
+      },
       packageBin := {
-        val x1 = generateWorkspace.value;
-        streams.value.log.info(s"Packaging to ${artifactPath.value}")
-        UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), mappings.value map { a => a._2 }, streams.value.log);
-        artifactPath.value;
+        val x1 = compile.value;
+        UnityWrapper.buildUnityPackage(
+          workspaceDirectory.value,
+          (artifactPath in packageBin).value,
+          file((artifactPath in packageBin).value.toString() + ".log"),
+          (mappings in packageBin).value map { a => a._2 },
+          streams.value.log);
+        (artifactPath in packageBin).value;
       }
     ))
-    )
 
   private def unityCommonSettings: Seq[Setting[_]] = Seq(
     // Unity options

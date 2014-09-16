@@ -1,3 +1,6 @@
 # Build Unity Package
 > package
 $ exists target/package-unity-package-0.1.unitypackage
+$ mkdir target/tmp
+$ exec tar xf target/package-unity-package-0.1.unitypackage -C target/tmp
+> existsInFile "Assets/package-unity-package/Test.cs" target/tmp
