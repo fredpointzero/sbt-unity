@@ -96,7 +96,10 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace
     workspaceDirectory := target.value / "workspace",
-    generateWorkspace := generateWorkspaceTask.value
+    generateWorkspace := generateWorkspaceTask.value,
+
+    // Add build pipeline package
+    libraryDependencies += organization.value % (name.value + "-package") % version.value artifacts Artifact (name.value + "-package", "unitypackage", "unitypackage")
   )) ++ inConfig(Test)(Seq(
     unitySource := Seq(
       sourceDirectory.value / SOURCES_FOLDER_NAME,
