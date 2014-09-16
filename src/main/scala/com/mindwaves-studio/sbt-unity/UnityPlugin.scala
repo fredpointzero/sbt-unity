@@ -199,9 +199,10 @@ object UnityPlugin extends sbt.Plugin{
       }
     }
 
-    val unmanagedLibFiles = unmanagedBase.value.listFiles;
-    if (unmanagedLibFiles != null)  {
-      for (packageFile:File <- unmanagedLibFiles.filter(_.ext == "unitypackage")) {
+    val libFiles:Seq[File] = update.value.matching(artifactFilter(`type`= "unitypackage", extension = "unitypackage")) ++ Option(unmanagedBase.value.listFiles).toList.flatten
+    if (libFiles != null)  {
+      for (packageFile:File <- libFiles.filter(_.ext == "unitypackage")) {
+        streams.value.log.info(s"importing lib: $packageFile")
         UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
       }
     }
