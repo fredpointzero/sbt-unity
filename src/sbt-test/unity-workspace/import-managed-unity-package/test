@@ -1,5 +1,4 @@
 # Import package
-$ pause
 > compile:generateWorkspace
 $ exists target/workspace/Assets/Test.cs
 $ exists target/workspace/Assets/Test.cs.meta
