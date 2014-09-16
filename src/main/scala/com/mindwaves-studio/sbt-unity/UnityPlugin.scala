@@ -27,54 +27,67 @@ object UnityPlugin extends sbt.Plugin{
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
     // Cross building
-    crossPlatform := UnityWrapper.TargetPlatform.None
-  ) ++ inConfig(Compile)(Seq(
-    crossTarget := target.value / crossPlatform.value.toString(),
-
-    compile := compileTask.value,
-    products <<= productsTask,
-    artifact := artifactSetting.value,
-    run := runTask.value
-  )) ++ inConfig(Test)(Seq(
-    crossTarget := target.value / crossPlatform.value.toString(),
-
-    compile := compileTask.value,
-    products <<= productsTask,
-    artifact := artifactSetting.value,
-    run := runTask.value
-  ))
-
-  def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
-    // Tasks
-    products <<= Def.task { Nil },
-    compile := {
-      val x1 = generateWorkspace.value;
-      Analysis.Empty;
-    },
-    artifact := { Artifact.apply(name.value, "unitypackage", "unitypackage", s"${configuration}"); },
-    packageBin in Compile := {
-      val x1 = generateWorkspace.value;
-      UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), (mappings.in(Compile, packageBin)).value map { a => a._2 }, streams.value.log);
-      artifactPath.value;
-    },
-    skip in run := true
-  )
-
-  private def unityCommonSettings: Seq[Setting[_]] = Seq(
-    // Unity options
-    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
+    crossPlatform := UnityWrapper.TargetPlatform.None,
     artifactName := {
       (scalaVersion:ScalaVersion, module:ModuleID, artifact:Artifact) => {
         import artifact._
         val classifierStr = classifier match { case None => ""; case Some(c) => "-" + c }
         artifact.name + "_" + crossPlatform.value + "-" + module.revision + classifierStr + "." + artifact.extension
       }
+    }
+  ) ++ unityPlayerSettingsIn(Compile) ++ unityPlayerSettingsIn(Test)
+
+  private def unityPlayerSettingsIn(c:Configuration) =
+    inConfig(c)(Seq(
+      crossTarget := target.value / crossPlatform.value.toString(),
+
+      compile := compileTask.value,
+      products <<= productsTask,
+      artifact := artifactSetting.value,
+      run := runTask.value
+    ))
+
+  def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
+    artifactName := {
+      (scalaVersion:ScalaVersion, module:ModuleID, artifact:Artifact) => {
+        import artifact._
+        val classifierStr = classifier match { case None => ""; case Some(c) => "-" + c }
+        artifact.name + "-" + module.revision + classifierStr + "." + artifact.extension
+      }
     },
-  mappings.in(Compile, packageBin) <<= (mappings.in(Compile, packageBin), streams) map { (f, s) =>
-    s.log.warn(s"Mapping with ${f.size} file")
-    for((file, path) <- f) s.log.warn(s"$file -> $path");
-    f
-  }
+    skip in run := true
+  ) ++ unityPackageSettingsIn(Compile) ++ unityPackageSettingsIn(Test)
+
+  private def unityPackageSettingsIn(c:Configuration) =
+    inConfig(c)(Seq(
+      // There is no cross build constraints for unity package
+      crossTarget := target.value,
+      artifact := { Artifact.apply(name.value, "unitypackage", "unitypackage"); },
+
+      // Tasks
+      products <<= Def.task { Nil },
+      compile := {
+        val x1 = generateWorkspace.value;
+        Analysis.Empty;
+      }
+    ) ++ inTask(packageBin)(Seq(
+      packageBin := {
+        val x1 = generateWorkspace.value;
+        streams.value.log.info(s"Packaging to ${artifactPath.value}")
+        UnityWrapper.buildUnityPackage(workspaceDirectory.value, artifactPath.value, file(artifactPath.value.toString() + ".log"), mappings.value map { a => a._2 }, streams.value.log);
+        artifactPath.value;
+      }
+    ))
+    )
+
+  private def unityCommonSettings: Seq[Setting[_]] = Seq(
+    // Unity options
+    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
+    mappings.in(Compile, packageBin) <<= (mappings.in(Compile, packageBin), streams) map { (f, s) =>
+      s.log.warn(s"Mapping with ${f.size} file")
+      for((file, path) <- f) s.log.warn(s"$file -> $path");
+      f
+    }
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
