@@ -2,6 +2,8 @@ package com.mindwaves_studio.sbt_unity
 
 import sbt._
 
+import scala.io.Source
+
 /**
  * Created by Fredpointzero on 09/09/2014.
  */
@@ -61,6 +63,11 @@ object UnityWrapper {
       projectPath.getAbsolutePath()).!;
 
     if(result != 0) {
+      if (logFile.canRead) {
+        for(line <- Source.fromFile(logFile) getLines) {
+          log.info("[unity]: " + line)
+        }
+      }
       throw new RuntimeException(s"Could not create Unity project at $projectPath (see $logFile)");
     }
   }
@@ -102,6 +109,11 @@ object UnityWrapper {
       targetPath).!;
 
     if(result != 0) {
+      if (logFile.canRead) {
+        for(line <- Source.fromFile(logFile) getLines) {
+          log.info("[unity]: " + line)
+        }
+      }
       throw new RuntimeException(s"Could not build Unity player at $projectPath (see $logFile)");
     }
   }
@@ -135,6 +147,11 @@ object UnityWrapper {
     val result = (commonCmd ++ (sourceDirectories :+ targetFile.toString()) ++ Seq("-logFile", logFile.toString())) !;
 
     if(result != 0) {
+      if (logFile.canRead) {
+        for(line <- Source.fromFile(logFile) getLines) {
+          log.info("[unity]: " + line)
+        }
+      }
       throw new RuntimeException(s"Could not build Unity package (see $logFile)");
     }
   }
