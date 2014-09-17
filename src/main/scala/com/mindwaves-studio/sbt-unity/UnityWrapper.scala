@@ -175,13 +175,17 @@ object UnityWrapper {
       executable.getAbsolutePath(),
       "-batchMode",
       "-quit",
-      "-projectPath ",
-      projectPath.getAbsolutePath(),
-      "-importPackage",
-      packageFile.getAbsolutePath()
+      "-projectPath ", projectPath.getAbsolutePath(),
+      "-logFile", logFile.getAbsolutePath(),
+      "-importPackage", packageFile.getAbsolutePath()
     ) !;
 
     if(result != 0) {
+      if (logFile.canRead) {
+        for(line <- Source.fromFile(logFile) getLines) {
+          log.info("[unity]: " + line)
+        }
+      }
       throw new RuntimeException(s"Could not import Unity package $packageFile (see $logFile)");
     }
   }

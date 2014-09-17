@@ -180,6 +180,14 @@ object UnityPlugin extends sbt.Plugin{
       UnityWrapper.createUnityProjectAt(workspaceDirectory.value, target.value / s"${workspaceDirectory.value}.log", streams.value.log);
     }
 
+    val libFiles:Seq[File] = update.value.matching(artifactFilter(`type`= "unitypackage", extension = "unitypackage")) ++ Option(unmanagedBase.value.listFiles).toList.flatten
+    if (libFiles != null)  {
+      for (packageFile:File <- libFiles.filter(_.ext == "unitypackage")) {
+        streams.value.log.info(s"importing lib: $packageFile")
+        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
+      }
+    }
+
     for (sourceDir <- unitySource.value) {
       val sourcesContext = extractSourceDirectoryContext(sourceDir);
       if (sourcesContext != null) {
@@ -213,14 +221,6 @@ object UnityPlugin extends sbt.Plugin{
           }
           Files.createSymbolicLink(targetLink toPath, settingFile toPath);
         }
-      }
-    }
-
-    val libFiles:Seq[File] = update.value.matching(artifactFilter(`type`= "unitypackage", extension = "unitypackage")) ++ Option(unmanagedBase.value.listFiles).toList.flatten
-    if (libFiles != null)  {
-      for (packageFile:File <- libFiles.filter(_.ext == "unitypackage")) {
-        streams.value.log.info(s"importing lib: $packageFile")
-        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
       }
     }
 
