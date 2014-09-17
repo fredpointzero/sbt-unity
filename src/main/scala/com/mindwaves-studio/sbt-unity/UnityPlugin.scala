@@ -23,6 +23,7 @@ object UnityPlugin extends sbt.Plugin{
     // Unity Options
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
+    val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -101,7 +102,9 @@ object UnityPlugin extends sbt.Plugin{
         Seq(org % a % v artifacts Artifact (a, "unitypackage", "unitypackage"))
       else
         Seq()
-    }
+    },
+    libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage"),
+    unityTestToolsVersion := "1.4"
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
