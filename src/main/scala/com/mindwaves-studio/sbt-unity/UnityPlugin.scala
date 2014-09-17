@@ -48,6 +48,7 @@ object UnityPlugin extends sbt.Plugin{
     ))
 
   def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
+    crossVersion := CrossVersion.Disabled,
     artifactName := {
       (scalaVersion:ScalaVersion, module:ModuleID, artifact:Artifact) => {
         import artifact._
@@ -55,21 +56,20 @@ object UnityPlugin extends sbt.Plugin{
         artifact.name + "-" + module.revision + classifierStr + "." + artifact.extension
       }
     },
-    skip in run := true
+    skip in run := true,
+    // There is no cross build constraints for unity package
+    crossTarget := target.value
   ) ++ unityPackageSettingsIn(Compile) ++ unityPackageSettingsIn(Test)
 
   private def unityPackageSettingsIn(c:Configuration) =
     inConfig(c)(Seq(
-      // There is no cross build constraints for unity package
-      crossTarget := target.value,
-      artifact := { Artifact.apply(name.value, "unitypackage", "unitypackage"); },
-
       // Tasks
       products <<= Def.task { Nil },
       compile := {
         val x1 = generateWorkspace.value;
         Analysis.Empty;
       },
+      artifact in packageBin := { (artifact in packageBin).value.copy(`type` = "unitypackage", extension = "unitypackage"); },
       packageBin := {
         val x1 = compile.value;
         UnityWrapper.buildUnityPackage(
@@ -78,6 +78,7 @@ object UnityPlugin extends sbt.Plugin{
           file((artifactPath in packageBin).value.toString() + ".log"),
           (mappings in packageBin).value map { a => a._2 },
           streams.value.log);
+
         (artifactPath in packageBin).value;
       }
     ))
@@ -89,6 +90,17 @@ object UnityPlugin extends sbt.Plugin{
       s.log.warn(s"Mapping with ${f.size} file")
       for((file, path) <- f) s.log.warn(s"$file -> $path");
       f
+    },
+
+    // Add build pipeline package
+    libraryDependencies ++= {
+      val v = "1.0-SNAPSHOT";
+      val org = "com.mindwaves-studio";
+      val a = "sbt-unity-package"
+      if (organization.value != org && name.value != a && version.value != v)
+        Seq(org % a % v artifacts Artifact (a, "unitypackage", "unitypackage"))
+      else
+        Seq()
     }
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
@@ -96,10 +108,7 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace
     workspaceDirectory := target.value / "workspace",
-    generateWorkspace := generateWorkspaceTask.value,
-
-    // Add build pipeline package
-    libraryDependencies += organization.value % (name.value + "-package") % version.value artifacts Artifact (name.value + "-package", "unitypackage", "unitypackage")
+    generateWorkspace := generateWorkspaceTask.value
   )) ++ inConfig(Test)(Seq(
     unitySource := Seq(
       sourceDirectory.value / SOURCES_FOLDER_NAME,

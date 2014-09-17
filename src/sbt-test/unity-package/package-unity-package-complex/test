@@ -1,5 +1,6 @@
 # Build Unity Package
 > package
+$ pause
 $ exists target/package-unity-package-complex-0.1.unitypackage
 $ mkdir target/tmp
 $ exec tar xf target/package-unity-package-complex-0.1.unitypackage -C target/tmp

@@ -122,29 +122,40 @@ object UnityWrapper {
 
     val executable = detectUnityExecutable;
     log.info(s"Using $executable");
-    val commonCmd = List(
-      executable.getAbsolutePath(),
-      "-batchMode",
-      "-quit",
-      "-projectPath ",
-      projectPath.getAbsolutePath(),
-      "-exportPackage"
-    );
 
     val parentDirectory = file(targetFile.getParent());
     if (!parentDirectory.exists()) {
       parentDirectory.mkdirs();
     }
 
-    // Check that inputs are directories
-    for (path <- sourceDirectories) {
-      val fileToCheck = projectPath / path;
-      if (!fileToCheck.isDirectory()) {
-        throw new RuntimeException(s"$path ($fileToCheck) is not a directory");
-      }
-    }
+    var commandToExecute:List[String] = null;
+    if (sourceDirectories.exists(path => path.contains("ProjectSettings") || file(path).isFile)){
+      val commonCmd = List(
+        executable.getAbsolutePath(),
+        "-batchMode",
+        "-quit",
+        "-projectPath ",
+        projectPath.getAbsolutePath(),
+        "-logFile", logFile.toString(),
+        "-executeMethod",
+        "MW.BuildPipelineTools.ExportPackageCL"
+      );
 
-    val result = (commonCmd ++ (sourceDirectories :+ targetFile.toString()) ++ Seq("-logFile", logFile.toString())) !;
+      commandToExecute = (commonCmd ++ (Seq("+sourceAsset") ++ sourceDirectories ++ Seq("+output", targetFile.toString())));
+    }
+    else {
+      val commonCmd = List(
+        executable.getAbsolutePath(),
+        "-batchMode",
+        "-quit",
+        "-projectPath ",
+        projectPath.getAbsolutePath(),
+        "-logFile", logFile.toString(),
+        "-exportPackage"
+      );
+      commandToExecute = (commonCmd ++ (sourceDirectories :+ targetFile.toString()));
+    }
+    val result = commandToExecute !;
 
     if(result != 0) {
       if (logFile.canRead) {
