@@ -1,0 +1,7 @@
+-> test
+$ exists target/unit-test-report.xml
+
+$ exec rm target/unit-test-report.xml
+> set UnityKeys.unityUnitTestFilters in Test := Seq("UnityTest.SampleTests.PassingTest")
+> test
+$ exists target/unit-test-report.xml

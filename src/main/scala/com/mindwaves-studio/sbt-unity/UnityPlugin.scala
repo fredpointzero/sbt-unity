@@ -24,6 +24,9 @@ object UnityPlugin extends sbt.Plugin{
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
+
+    val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
+    val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -93,6 +96,9 @@ object UnityPlugin extends sbt.Plugin{
       f
     },
 
+    unityUnitTestFilters := Seq(),
+    unityUnitTestCategories := Seq(),
+
     // Add build pipeline package
     libraryDependencies ++= {
       val v = "1.0-SNAPSHOT";
@@ -119,6 +125,18 @@ object UnityPlugin extends sbt.Plugin{
       sourceDirectory.value / SETTINGS_FOLDER_NAME
     ),
     unmanagedSourceDirectories := unitySource.value,
+
+    sbt.Keys.test := {
+      val x1 = generateWorkspace.value;
+      val filters = if(unityUnitTestFilters.value.size > 0) Seq("-filter=" + unityUnitTestFilters.value.mkString(",")) else Seq()
+      val categories = if(unityUnitTestCategories.value.size > 0) Seq("-categories=" + unityUnitTestCategories.value.mkString(",")) else Seq()
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory.value,
+        workspaceDirectory.value / "test.log",
+        streams.value.log,
+        "UnityTest.Batch.RunUnitTests",
+        Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
+    },
 
     // Workspace
     workspaceDirectory := target.value / "test-workspace",
