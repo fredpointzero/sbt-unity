@@ -5,3 +5,4 @@
 > isSymlink target/workspace/Assets/generate-main-workspace
 $ exists target/workspace/Library
 $ exists target/workspace/ProjectSettings
+$ absent target/workspace/Assets/UnityTestTools

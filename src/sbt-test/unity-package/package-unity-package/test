@@ -1,4 +1,5 @@
 # Build Unity Package
+$ pause
 > package
 $ exists target/package-unity-package-0.1.unitypackage
 $ mkdir target/tmp

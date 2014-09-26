@@ -111,7 +111,7 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace
     workspaceDirectory := target.value / "workspace",
-    generateWorkspace := generateWorkspaceTask.value
+    generateWorkspace := generateWorkspaceTaskIn(Compile).value
   )) ++ inConfig(Test)(Seq(
     unitySource := Seq(
       sourceDirectory.value / SOURCES_FOLDER_NAME,
@@ -122,7 +122,7 @@ object UnityPlugin extends sbt.Plugin{
 
     // Workspace
     workspaceDirectory := target.value / "test-workspace",
-    generateWorkspace := generateWorkspaceTask.value
+    generateWorkspace := generateWorkspaceTaskIn(Test).value
   ))
 
   def extractSourceDirectoryContext(path:File):String =
@@ -168,7 +168,7 @@ object UnityPlugin extends sbt.Plugin{
     Analysis.Empty;
   }
 
-  private def generateWorkspaceTask = Def.task {
+  private def generateWorkspaceTaskIn(c:Configuration) = Def.task {
     val assetDirectory = workspaceDirectory.value / "Assets";
     // Make directories if necessary
     if (!assetDirectory.exists()) {
@@ -180,7 +180,11 @@ object UnityPlugin extends sbt.Plugin{
       UnityWrapper.createUnityProjectAt(workspaceDirectory.value, target.value / s"${workspaceDirectory.value}.log", streams.value.log);
     }
 
-    val libFiles:Seq[File] = update.value.matching(artifactFilter(`type`= "unitypackage", extension = "unitypackage")) ++ Option(unmanagedBase.value.listFiles).toList.flatten
+    val libFiles:Seq[File] = update.value.matching(
+        artifactFilter(`type`= "unitypackage", extension = "unitypackage") &&
+        configurationFilter(name = c.name)
+        ) ++
+      Option(unmanagedBase.value.listFiles).toList.flatten
     if (libFiles != null)  {
       for (packageFile:File <- libFiles.filter(_.ext == "unitypackage")) {
         streams.value.log.info(s"importing lib: $packageFile")
