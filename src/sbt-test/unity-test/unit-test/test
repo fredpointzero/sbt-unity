@@ -1,7 +1,9 @@
+# Execute full test (this must fail as it contains failed test)
 -> test
 $ exists target/unit-test-report.xml
 
+# Execute a passing test
 $ exec rm target/unit-test-report.xml
 > set UnityKeys.unityUnitTestFilters in Test := Seq("UnityTest.SampleTests.PassingTest")
-> test
+> test-only
 $ exists target/unit-test-report.xml

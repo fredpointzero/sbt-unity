@@ -126,17 +126,12 @@ object UnityPlugin extends sbt.Plugin{
     ),
     unmanagedSourceDirectories := unitySource.value,
 
-    sbt.Keys.test := {
-      val x1 = generateWorkspace.value;
-      val filters = if(unityUnitTestFilters.value.size > 0) Seq("-filter=" + unityUnitTestFilters.value.mkString(",")) else Seq()
-      val categories = if(unityUnitTestCategories.value.size > 0) Seq("-categories=" + unityUnitTestCategories.value.mkString(",")) else Seq()
-      UnityWrapper.callUnityEditorMethod(
-        workspaceDirectory.value,
-        workspaceDirectory.value / "test.log",
-        streams.value.log,
-        "UnityTest.Batch.RunUnitTests",
-        Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
-    },
+    // Force complete unit test in test task
+    unityUnitTestFilters in test := Seq(),
+    unityUnitTestCategories in test := Seq(),
+
+    sbt.Keys.test := unitTestTaskIn(test).value,
+    sbt.Keys.testOnly := unitTestTaskIn(testOnly).value,
 
     // Workspace
     workspaceDirectory := target.value / "test-workspace",
@@ -162,6 +157,18 @@ object UnityPlugin extends sbt.Plugin{
     else {
       return null;
     }
+  }
+
+  private def unitTestTaskIn(key:Scoped) = Def.task {
+    val x1 = generateWorkspace.value;
+    val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
+    val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
+    UnityWrapper.callUnityEditorMethod(
+      workspaceDirectory.value,
+      workspaceDirectory.value / "test.log",
+      streams.value.log,
+      "UnityTest.Batch.RunUnitTests",
+      Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
   }
 
   private def artifactSetting = Def.setting { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
