@@ -1,7 +1,19 @@
 # Build Unity Package
 > package
-$ pause
 $ exists target/package-unity-package-complex-0.1.unitypackage
 $ mkdir target/tmp
 $ exec tar xf target/package-unity-package-complex-0.1.unitypackage -C target/tmp
 > existsInFile "Assets/package-unity-package-complex/Test.cs" target/tmp
+> existsInFile "ProjectSettings/AudioManager.asset" target/tmp
+> existsInFile "ProjectSettings/DynamicsManager.asset" target/tmp
+> existsInFile "ProjectSettings/EditorBuildSettings.asset" target/tmp
+> existsInFile "ProjectSettings/EditorSettings.asset" target/tmp
+> existsInFile "ProjectSettings/GraphicsSettings.asset" target/tmp
+> existsInFile "ProjectSettings/InputManager.asset" target/tmp
+> existsInFile "ProjectSettings/NavMeshLayers.asset" target/tmp
+> existsInFile "ProjectSettings/NetworkManager.asset" target/tmp
+> existsInFile "ProjectSettings/Physics2DSettings.asset" target/tmp
+> existsInFile "ProjectSettings/ProjectSettings.asset" target/tmp
+> existsInFile "ProjectSettings/QualitySettings.asset" target/tmp
+> existsInFile "ProjectSettings/TagManager.asset" target/tmp
+> existsInFile "ProjectSettings/TimeManager.asset" target/tmp
