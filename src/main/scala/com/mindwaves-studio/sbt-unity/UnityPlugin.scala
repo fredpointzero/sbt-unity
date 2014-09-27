@@ -27,6 +27,8 @@ object UnityPlugin extends sbt.Plugin{
 
     val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
     val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
+    val unityIntegrationTestScenes = SettingKey[Seq[String]]("unity-integration-test-scenes", "Scenes to execute during the integration tests")
+    val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -98,6 +100,8 @@ object UnityPlugin extends sbt.Plugin{
 
     unityUnitTestFilters := Seq(),
     unityUnitTestCategories := Seq(),
+    unityIntegrationTestScenes := Seq(),
+    unityIntegrationTestPlatform := "Windows",
 
     // Add build pipeline package
     libraryDependencies ++= {
@@ -130,8 +134,8 @@ object UnityPlugin extends sbt.Plugin{
     unityUnitTestFilters in test := Seq(),
     unityUnitTestCategories in test := Seq(),
 
-    sbt.Keys.test := unitTestTaskIn(test).value,
-    sbt.Keys.testOnly := unitTestTaskIn(testOnly).value,
+    sbt.Keys.test := testTaskIn(test).value,
+    sbt.Keys.testOnly := testTaskIn(testOnly).value,
 
     // Workspace
     workspaceDirectory := target.value / "test-workspace",
@@ -159,16 +163,36 @@ object UnityPlugin extends sbt.Plugin{
     }
   }
 
-  private def unitTestTaskIn(key:Scoped) = Def.task {
+  private def testTaskIn(key:Scoped) = Def.task {
     val x1 = generateWorkspace.value;
-    val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
-    val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
-    UnityWrapper.callUnityEditorMethod(
-      workspaceDirectory.value,
-      workspaceDirectory.value / "test.log",
-      streams.value.log,
-      "UnityTest.Batch.RunUnitTests",
-      Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
+
+    // Unit Tests
+    {
+      val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
+      val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory.value,
+        workspaceDirectory.value / "test.log",
+        streams.value.log,
+        "UnityTest.Batch.RunUnitTests",
+        Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
+    }
+
+    // Integration Tests
+    {
+      val resultDirectory = workspaceDirectory.value / "../resultDirectory";
+      if (!resultDirectory.exists()) {
+        resultDirectory.mkdirs();
+      }
+      val scenes = if((unityIntegrationTestScenes in key).value.size > 0) Seq("-testscenes=" + (unityIntegrationTestScenes in key).value.mkString(",")) else Seq()
+      val platform = if((unityIntegrationTestPlatform in key).value.size > 0) Seq("-targetPlatform=" + (unityIntegrationTestPlatform in key).value) else Seq()
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory.value,
+        workspaceDirectory.value / "test.log",
+        streams.value.log,
+        "UnityTest.Batch.RunIntegrationTests",
+        Seq("-resultsFileDirectory=" + resultDirectory) ++ scenes ++ platform);
+    }
   }
 
   private def artifactSetting = Def.setting { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
