@@ -1,0 +1,4 @@
+# Avoid failure on unit test
+$ pause
+> test:test-only
+$ pause

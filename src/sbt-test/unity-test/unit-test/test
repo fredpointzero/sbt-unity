@@ -5,5 +5,5 @@ $ exists target/unit-test-report.xml
 # Execute a passing test
 $ exec rm target/unit-test-report.xml
 > set UnityKeys.unityUnitTestFilters in Test := Seq("UnityTest.SampleTests.PassingTest")
-> test-only
+> test:test-only
 $ exists target/unit-test-report.xml
