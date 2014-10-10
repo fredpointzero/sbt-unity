@@ -167,17 +167,16 @@ object UnityWrapper {
     }
   }
 
-  def callUnityEditorMethod(projectPath: File, logFile: File, log: Logger, method: String, args: Seq[String]) = {
+  def callUnityEditorMethod(projectPath: File, logFile: File, log: Logger, method: String, args: Seq[String], quit:Boolean = true) = {
     val executable = detectUnityExecutable;
     log.info(s"Using $executable");
 
-    val result = (List(executable.getAbsolutePath(),
-    "-batchMode",
-    "-quit",
-    "-projectPath ",
-    projectPath.getAbsolutePath(),
-    "-logFile", logFile.toString(),
-    "-executeMethod"
+    val result = (List(executable.getAbsolutePath(), "-batchMode") ++
+    (if (quit) Some("-quit") else None) ++
+    List("-projectPath ",
+      projectPath.getAbsolutePath(),
+      "-logFile", logFile.toString(),
+      "-executeMethod"
     ) ++ Seq(method) ++ args) !;
 
     if(result != 0) {

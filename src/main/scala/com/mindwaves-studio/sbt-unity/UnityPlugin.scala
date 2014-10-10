@@ -114,7 +114,7 @@ object UnityPlugin extends sbt.Plugin{
         Seq()
     },
     libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage"),
-    unityTestToolsVersion := "1.4"
+    unityTestToolsVersion := "1.4.1"
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
@@ -191,7 +191,8 @@ object UnityPlugin extends sbt.Plugin{
         workspaceDirectory.value / "test.log",
         streams.value.log,
         "UnityTest.Batch.RunIntegrationTests",
-        Seq("-resultsFileDirectory=" + resultDirectory) ++ scenes ++ platform);
+        Seq("-resultsFileDirectory=" + resultDirectory) ++ scenes ++ platform,
+        false);
     }
   }
 
