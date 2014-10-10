@@ -266,14 +266,12 @@ object UnityPlugin extends sbt.Plugin{
 
       val settingsContext = extractSettingsDirectoryContext(sourceDir);
       if (settingsContext != null && sourceDir.exists()) {
-        for(settingFile <- sourceDir.listFiles("*.asset")) {
-          val targetLink = workspaceDirectory.value / "ProjectSettings" / settingFile.name;
-          if(targetLink.exists()) {
-            streams.value.log.info(s"Deleting existing setting: $targetLink");
-            targetLink.delete();
-          }
-          Files.createSymbolicLink(targetLink toPath, settingFile toPath);
+        val targetLink = workspaceDirectory.value / "ProjectSettings";
+        if(targetLink.exists()) {
+          streams.value.log.info(s"Deleting existing setting: $targetLink");
+          IO.delete(targetLink);
         }
+        Files.createSymbolicLink(targetLink toPath, sourceDir toPath);
       }
     }
 
