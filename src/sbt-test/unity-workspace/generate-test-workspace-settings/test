@@ -1,0 +1,2 @@
+> test:generateWorkspace
+> isSymlink target/test-workspace/ProjectSettings

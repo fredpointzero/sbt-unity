@@ -1,0 +1,8 @@
+# Import package
+> compile:generateWorkspace
+$ exists target/workspace/Assets/Test.cs
+$ exists target/workspace/Assets/Test.cs.meta
+
+> test:generateWorkspace
+$ exists target/test-workspace/Assets/Test.cs
+$ exists target/test-workspace/Assets/Test.cs.meta

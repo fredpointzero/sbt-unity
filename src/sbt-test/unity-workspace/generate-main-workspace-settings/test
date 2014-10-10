@@ -1,0 +1,2 @@
+> compile:generateWorkspace
+> isSymlink target/workspace/ProjectSettings

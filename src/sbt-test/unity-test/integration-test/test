@@ -1,0 +1,3 @@
+# Avoid failure on unit test
+-> test:test-only
+$ exists target/resultDirectory/ExampleIntegrationTests.xml

@@ -1,0 +1,5 @@
+# Build Windows 64 bit player
+> set UnityKeys.crossPlatform := com.mindwaves_studio.sbt_unity.UnityWrapper.TargetPlatform.Windows64
+> compile
+$ exists target/Windows64/build-windows64.exe
+$ exists target/Windows64/build-windows64.exe

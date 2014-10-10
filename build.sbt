@@ -1,4 +1,11 @@
-name := "unitySbtPlugin"
+sbtPlugin := true
+
+name := "sbt-unity"
+
+organization := "com.mindwaves-studio"
 
 version := "1.0"
 
+libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % Test
+
+testOptions in Test += Tests.Argument("-oDSF")
