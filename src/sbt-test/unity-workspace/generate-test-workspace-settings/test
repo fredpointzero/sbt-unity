@@ -1,14 +1,2 @@
 > test:generateWorkspace
-> isSymlink target/test-workspace/ProjectSettings/AudioManager.asset
-> isSymlink target/test-workspace/ProjectSettings/DynamicsManager.asset
-> isSymlink target/test-workspace/ProjectSettings/EditorBuildSettings.asset
-> isSymlink target/test-workspace/ProjectSettings/EditorSettings.asset
-> isSymlink target/test-workspace/ProjectSettings/GraphicsSettings.asset
-> isSymlink target/test-workspace/ProjectSettings/InputManager.asset
-> isSymlink target/test-workspace/ProjectSettings/NavMeshLayers.asset
-> isSymlink target/test-workspace/ProjectSettings/NetworkManager.asset
-> isSymlink target/test-workspace/ProjectSettings/Physics2DSettings.asset
-> isSymlink target/test-workspace/ProjectSettings/ProjectSettings.asset
-> isSymlink target/test-workspace/ProjectSettings/QualitySettings.asset
-> isSymlink target/test-workspace/ProjectSettings/TagManager.asset
-> isSymlink target/test-workspace/ProjectSettings/TimeManager.asset
+> isSymlink target/test-workspace/ProjectSettings

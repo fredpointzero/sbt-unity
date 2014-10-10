@@ -167,6 +167,28 @@ object UnityWrapper {
     }
   }
 
+  def callUnityEditorMethod(projectPath: File, logFile: File, log: Logger, method: String, args: Seq[String], quit:Boolean = true) = {
+    val executable = detectUnityExecutable;
+    log.info(s"Using $executable");
+
+    val result = (List(executable.getAbsolutePath(), "-batchMode") ++
+    (if (quit) Some("-quit") else None) ++
+    List("-projectPath ",
+      projectPath.getAbsolutePath(),
+      "-logFile", logFile.toString(),
+      "-executeMethod"
+    ) ++ Seq(method) ++ args) !;
+
+    if(result != 0) {
+      if (logFile.canRead) {
+        for(line <- Source.fromFile(logFile) getLines) {
+          log.info("[unity]: " + line)
+        }
+      }
+      throw new RuntimeException(s"Could not execute $method (see $logFile)");
+    }
+  }
+
   def importPackage(projectPath:File, logFile:File, packageFile:File, log:Logger): Unit = {
     val executable = detectUnityExecutable;
     log.info(s"Using $executable");

@@ -24,6 +24,11 @@ object UnityPlugin extends sbt.Plugin{
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
+
+    val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
+    val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
+    val unityIntegrationTestScenes = SettingKey[Seq[String]]("unity-integration-test-scenes", "Scenes to execute during the integration tests")
+    val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -93,6 +98,11 @@ object UnityPlugin extends sbt.Plugin{
       f
     },
 
+    unityUnitTestFilters := Seq(),
+    unityUnitTestCategories := Seq(),
+    unityIntegrationTestScenes := Seq(),
+    unityIntegrationTestPlatform := "Windows",
+
     // Add build pipeline package
     libraryDependencies ++= {
       val v = "1.0-SNAPSHOT";
@@ -104,7 +114,7 @@ object UnityPlugin extends sbt.Plugin{
         Seq()
     },
     libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage"),
-    unityTestToolsVersion := "1.4"
+    unityTestToolsVersion := "1.4.1"
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
@@ -119,6 +129,13 @@ object UnityPlugin extends sbt.Plugin{
       sourceDirectory.value / SETTINGS_FOLDER_NAME
     ),
     unmanagedSourceDirectories := unitySource.value,
+
+    // Force complete unit test in test task
+    unityUnitTestFilters in test := Seq(),
+    unityUnitTestCategories in test := Seq(),
+
+    sbt.Keys.test := testTaskIn(test).value,
+    sbt.Keys.testOnly := testTaskIn(testOnly).value,
 
     // Workspace
     workspaceDirectory := target.value / "test-workspace",
@@ -143,6 +160,39 @@ object UnityPlugin extends sbt.Plugin{
     }
     else {
       return null;
+    }
+  }
+
+  private def testTaskIn(key:Scoped) = Def.task {
+    val x1 = generateWorkspace.value;
+
+    // Unit Tests
+    {
+      val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
+      val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory.value,
+        workspaceDirectory.value / "test.log",
+        streams.value.log,
+        "UnityTest.Batch.RunUnitTests",
+        Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
+    }
+
+    // Integration Tests
+    {
+      val resultDirectory = workspaceDirectory.value / "../resultDirectory";
+      if (!resultDirectory.exists()) {
+        resultDirectory.mkdirs();
+      }
+      val scenes = if((unityIntegrationTestScenes in key).value.size > 0) Seq("-testscenes=" + (unityIntegrationTestScenes in key).value.mkString(",")) else Seq()
+      val platform = if((unityIntegrationTestPlatform in key).value.size > 0) Seq("-targetPlatform=" + (unityIntegrationTestPlatform in key).value) else Seq()
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory.value,
+        workspaceDirectory.value / "test.log",
+        streams.value.log,
+        "UnityTest.Batch.RunIntegrationTests",
+        Seq("-resultsFileDirectory=" + resultDirectory) ++ scenes ++ platform,
+        false);
     }
   }
 
@@ -217,14 +267,12 @@ object UnityPlugin extends sbt.Plugin{
 
       val settingsContext = extractSettingsDirectoryContext(sourceDir);
       if (settingsContext != null && sourceDir.exists()) {
-        for(settingFile <- sourceDir.listFiles("*.asset")) {
-          val targetLink = workspaceDirectory.value / "ProjectSettings" / settingFile.name;
-          if(targetLink.exists()) {
-            streams.value.log.info(s"Deleting existing setting: $targetLink");
-            targetLink.delete();
-          }
-          Files.createSymbolicLink(targetLink toPath, settingFile toPath);
+        val targetLink = workspaceDirectory.value / "ProjectSettings";
+        if(targetLink.exists()) {
+          streams.value.log.info(s"Deleting existing setting: $targetLink");
+          IO.delete(targetLink);
         }
+        Files.createSymbolicLink(targetLink toPath, sourceDir toPath);
       }
     }
 
