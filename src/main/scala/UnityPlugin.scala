@@ -28,8 +28,10 @@ object UnityPlugin extends sbt.Plugin{
 
     val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
     val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
+    val unityUnitTestSkip = SettingKey[Boolean]("unity-unit-test-skip", "Skip unit test")
     val unityIntegrationTestScenes = SettingKey[Seq[String]]("unity-integration-test-scenes", "Scenes to execute during the integration tests")
     val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
+    val unityIntegrationTestSkip = SettingKey[Boolean]("unity-integration-test-skip", "Skip integration test")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -102,8 +104,10 @@ object UnityPlugin extends sbt.Plugin{
 
     unityUnitTestFilters := Seq(),
     unityUnitTestCategories := Seq(),
+    unityUnitTestSkip := false,
     unityIntegrationTestScenes := Seq(),
     unityIntegrationTestPlatform := "Windows",
+    unityIntegrationTestSkip := false,
     unityPackageToolsVersion := version.value,
     unityTestToolsVersion := "1.4.1",
 
@@ -171,6 +175,7 @@ object UnityPlugin extends sbt.Plugin{
     val x1 = generateWorkspace.value;
 
     // Unit Tests
+    if (!unityUnitTestSkip.value)
     {
       val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
       val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
@@ -183,6 +188,7 @@ object UnityPlugin extends sbt.Plugin{
     }
 
     // Integration Tests
+    if (!unityIntegrationTestSkip.value)
     {
       val resultDirectory = workspaceDirectory.value / "../resultDirectory";
       if (!resultDirectory.exists()) {

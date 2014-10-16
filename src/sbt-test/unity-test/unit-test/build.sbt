@@ -11,3 +11,5 @@ unityPlayerSettings
 
 // Set sbt-unity-package version
 UnityKeys.unityPackageToolsVersion := System.getProperty("package.version")
+
+UnityKeys.unityIntegrationTestSkip := true
