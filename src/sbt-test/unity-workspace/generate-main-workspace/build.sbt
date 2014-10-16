@@ -10,3 +10,6 @@ version := "0.1"
 unityPlayerSettings
 
 testSettings
+
+// Set sbt-unity-package version
+UnityKeys.unityPackageToolsVersion := System.getProperty("package.version")

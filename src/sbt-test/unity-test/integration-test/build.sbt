@@ -12,3 +12,6 @@ unityPlayerSettings
 UnityKeys.unityIntegrationTestScenes in Test := Seq("ExampleIntegrationTests")
 
 UnityKeys.unityUnitTestFilters in Test := Seq("UnityTest.SampleTests.PassingTest")
+
+// Set sbt-unity-package version
+UnityKeys.unityPackageToolsVersion := System.getProperty("package.version")

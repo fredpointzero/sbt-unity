@@ -11,4 +11,7 @@ unityPlayerSettings
 
 resolvers += "Local Maven Repository" at "file:///" + baseDirectory.value + "/.m2/repository"
 
-libraryDependencies += "com.mindwaves-studio" % "dummy_test" % "1.0" artifacts Artifact ("dummy_test", "unitypackage", "unitypackage")
+libraryDependencies += "org.fredericvauchelles" % "dummy_test" % "1.0" artifacts Artifact ("dummy_test", "unitypackage", "unitypackage")
+
+// Set sbt-unity-package version
+UnityKeys.unityPackageToolsVersion := System.getProperty("package.version")

@@ -63,6 +63,7 @@ object UnityPlugin extends sbt.Plugin{
         artifact.name + "-" + module.revision + classifierStr + "." + artifact.extension
       }
     },
+    mappings in (Compile, packageBin) := Seq((file(""), s"Assets/${normalizedName.value}")),
     skip in run := true,
     // There is no cross build constraints for unity package
     crossTarget := target.value
@@ -103,7 +104,7 @@ object UnityPlugin extends sbt.Plugin{
     unityUnitTestCategories := Seq(),
     unityIntegrationTestScenes := Seq(),
     unityIntegrationTestPlatform := "Windows",
-    unityPackageToolsVersion := "1.0",
+    unityPackageToolsVersion := version.value,
     unityTestToolsVersion := "1.4.1",
 
     // Add build pipeline package

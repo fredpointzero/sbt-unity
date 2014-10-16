@@ -8,3 +8,6 @@ name := baseDirectory.value.name
 version := "0.1"
 
 unityPlayerSettings
+
+// Set sbt-unity-package version
+UnityKeys.unityPackageToolsVersion := System.getProperty("package.version")
