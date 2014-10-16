@@ -11,5 +11,5 @@ logLevel := sbt.Level.Warn
     throw new RuntimeException("""|The system property 'plugin.version' is not defined.
                                  |Specify this property using the scriptedLaunchOpts -D.""".stripMargin)
   else
-    addSbtPlugin("com.mindwaves-studio" % "sbt-unity" % pluginVersion)
+    addSbtPlugin("org.fredericvauchelles" % "sbt-unity" % pluginVersion)
 }
