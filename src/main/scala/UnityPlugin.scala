@@ -24,6 +24,7 @@ object UnityPlugin extends sbt.Plugin{
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
+    val unityPackageToolsVersion = SettingKey[String]("unity-package-tools-version", "Version of the sbt-unity-package")
 
     val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
     val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
@@ -102,19 +103,21 @@ object UnityPlugin extends sbt.Plugin{
     unityUnitTestCategories := Seq(),
     unityIntegrationTestScenes := Seq(),
     unityIntegrationTestPlatform := "Windows",
+    unityPackageToolsVersion := "1.0",
+    unityTestToolsVersion := "1.4.1",
 
     // Add build pipeline package
     libraryDependencies ++= {
-      val v = "1.0-SNAPSHOT";
-      val org = "com.mindwaves-studio";
+      val v = unityPackageToolsVersion.value;
+      val org = "org.fredericvauchelles";
       val a = "sbt-unity-package"
       if (organization.value != org && name.value != a && version.value != v)
         Seq(org % a % v artifacts Artifact (a, "unitypackage", "unitypackage"))
       else
         Seq()
     },
-    libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage"),
-    unityTestToolsVersion := "1.4.1"
+    libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage")
+
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
