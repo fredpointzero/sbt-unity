@@ -11,5 +11,10 @@ unityPackageSettings
 
 testSettings
 
+mappings in (Compile, packageBin) := Seq(
+  (file(""), s"Assets/${normalizedName.value}"),
+  (file(""), "ProjectSettings")
+)
+
 // Set sbt-unity-package version
 UnityKeys.unityPackageToolsVersion := System.getProperty("package.version")
