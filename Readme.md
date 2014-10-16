@@ -88,20 +88,20 @@ Feel free to fork it and create a pull request !
 
 # FAQ
 
-- #### The workspace generation does not works on Windows, it says that I don't have enough privileges !
+#### The workspace generation does not works on Windows, it says that I don't have enough privileges !
 
 On Windows, creating a symlink is an Administrator privileges, so you will have to run your command with an Administrator role. (right click on your shell > Execute as administrator)
 
-- #### SBT did not find the dependency _org.fredericvauchelles.sbt-unity_ !
+#### SBT did not find the dependency _org.fredericvauchelles.sbt-unity_ !
 
 Did you correctly provided the artifact in your repository ? Or published locally the artifact ?
 
-- #### SBT did not find the dependency _org.fredericvauchelles.sbt-unity-package_ !
+#### SBT did not find the dependency _org.fredericvauchelles.sbt-unity-package_ !
 
 Did you correctly provided the artifact in your repository ? Or published locally the artifact ?
 This is to be done on the **sbt-unity-package** project.
 
-- #### SBT did not find the dependency _com.unity3d.test-tools_ when generating the test workspace !
+#### SBT did not find the dependency _com.unity3d.test-tools_ when generating the test workspace !
 
 The Unity3D Test Tools is provided by Unity3D and I do not provided it. Althought, You must made it available to your dependency resolver by installing it in you preferred repository.
 
