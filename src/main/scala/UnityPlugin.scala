@@ -1,16 +1,16 @@
-package com.mindwaves_studio.sbt_unity
-
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 import java.nio.file.Files
 
-import sbt._
 import sbt.Keys._
+import sbt._
 import sbt.inc.Analysis
 
-/**
- * Created by fredericvauchelles on 07/09/2014.
- */
 object UnityPlugin extends sbt.Plugin{
-  import UnityKeys._
+  import UnityPlugin.UnityKeys._
 
   object UnityKeys {
     // Paths
@@ -24,11 +24,14 @@ object UnityPlugin extends sbt.Plugin{
     val crossPlatform = SettingKey[UnityWrapper.TargetPlatform.Value]("cross-platform", "Target platform for the build")
     val unityEditorExecutable = SettingKey[File]("unity-editor-executable", "Path to the Unity editor executable to use")
     val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
+    val unityPackageToolsVersion = SettingKey[String]("unity-package-tools-version", "Version of the sbt-unity-package")
 
     val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
     val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
+    val unityUnitTestSkip = SettingKey[Boolean]("unity-unit-test-skip", "Skip unit test")
     val unityIntegrationTestScenes = SettingKey[Seq[String]]("unity-integration-test-scenes", "Scenes to execute during the integration tests")
     val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
+    val unityIntegrationTestSkip = SettingKey[Boolean]("unity-integration-test-skip", "Skip integration test")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -62,6 +65,7 @@ object UnityPlugin extends sbt.Plugin{
         artifact.name + "-" + module.revision + classifierStr + "." + artifact.extension
       }
     },
+    mappings in (Compile, packageBin) := Seq((file(""), s"Assets/${normalizedName.value}")),
     skip in run := true,
     // There is no cross build constraints for unity package
     crossTarget := target.value
@@ -100,21 +104,25 @@ object UnityPlugin extends sbt.Plugin{
 
     unityUnitTestFilters := Seq(),
     unityUnitTestCategories := Seq(),
+    unityUnitTestSkip := false,
     unityIntegrationTestScenes := Seq(),
     unityIntegrationTestPlatform := "Windows",
+    unityIntegrationTestSkip := false,
+    unityPackageToolsVersion := version.value,
+    unityTestToolsVersion := "1.4.1",
 
     // Add build pipeline package
     libraryDependencies ++= {
-      val v = "1.0-SNAPSHOT";
-      val org = "com.mindwaves-studio";
+      val v = unityPackageToolsVersion.value;
+      val org = "org.fredericvauchelles";
       val a = "sbt-unity-package"
       if (organization.value != org && name.value != a && version.value != v)
         Seq(org % a % v artifacts Artifact (a, "unitypackage", "unitypackage"))
       else
         Seq()
     },
-    libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage"),
-    unityTestToolsVersion := "1.4.1"
+    libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage")
+
   ) ++ inConfig(Compile)(Seq(
     unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
     unmanagedSourceDirectories := unitySource.value,
@@ -167,6 +175,7 @@ object UnityPlugin extends sbt.Plugin{
     val x1 = generateWorkspace.value;
 
     // Unit Tests
+    if (!unityUnitTestSkip.value)
     {
       val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
       val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
@@ -179,6 +188,7 @@ object UnityPlugin extends sbt.Plugin{
     }
 
     // Integration Tests
+    if (!unityIntegrationTestSkip.value)
     {
       val resultDirectory = workspaceDirectory.value / "../resultDirectory";
       if (!resultDirectory.exists()) {

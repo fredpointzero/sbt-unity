@@ -1,3 +1,7 @@
 # Copyright (c) 2014 Frédéric Vauchelles
 # See the file license.txt for copying permission.
-sbt.version=0.13.5
+
+target
+.idea
+.plastic
+**/.DS_Store

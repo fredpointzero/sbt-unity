@@ -1,12 +1,11 @@
-package com.mindwaves_studio.sbt_unity.test
-
-import com.mindwaves_studio.sbt_unity._
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 import org.scalatest._
 import sbt.file
 
-/**
- * Created by Fredpointzero on 09/09/2014.
- */
 class UnityWrapperTest extends FreeSpec {
   "UnityWrapper" - {
     "should detect Unity's executable default path" - {
