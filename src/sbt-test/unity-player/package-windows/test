@@ -1,3 +1,6 @@
+# Copyright (c) 2014 Frédéric Vauchelles
+# See the file license.txt for copying permission.
+
 # Package Windows 32 bit player
 > set UnityKeys.crossPlatform := com.mindwaves_studio.sbt_unity.UnityWrapper.TargetPlatform.Windows
 > package

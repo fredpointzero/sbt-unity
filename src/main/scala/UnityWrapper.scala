@@ -1,12 +1,12 @@
-package com.mindwaves_studio.sbt_unity
-
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 import sbt._
 
 import scala.io.Source
 
-/**
- * Created by Fredpointzero on 09/09/2014.
- */
 object UnityWrapper {
   import scala.sys.process._
 

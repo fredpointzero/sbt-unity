@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 import java.nio.file.{Files, Paths}
 
 import sbt._

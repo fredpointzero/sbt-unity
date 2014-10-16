@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 ScriptedPlugin.scriptedSettings
 
 scriptedLaunchOpts := { scriptedLaunchOpts.value ++

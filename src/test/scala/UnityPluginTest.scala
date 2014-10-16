@@ -1,12 +1,11 @@
-package com.mindwaves_studio.sbt_unity.test
-
-import com.mindwaves_studio.sbt_unity.UnityPlugin
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 import org.scalatest.FreeSpec
 import sbt._
 
-/**
- * Created by Fredpointzero on 10/09/2014.
- */
 class UnityPluginTest extends FreeSpec {
   "UnityPlugin" - {
     "should extract the context of source directories" - {

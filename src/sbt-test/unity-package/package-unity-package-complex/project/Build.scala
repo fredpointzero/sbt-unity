@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2014 Frédéric Vauchelles
+ *
+ * See the file license.txt for copying permission.
+ */
 import sbt._
 import sbt.complete.Parsers._
 
