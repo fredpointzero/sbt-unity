@@ -6,6 +6,8 @@
 
 # Check if the symbolic link was created
 > isSymlink target/workspace/Assets/generate-main-workspace
+> isSymlink target/workspace/Assets/Plugins/generate-main-workspace
+> isSymlink target/workspace/Assets/Plugins/Editor/generate-main-workspace
 $ exists target/workspace/Library
 $ exists target/workspace/ProjectSettings
 $ absent target/workspace/Assets/UnityTestTools

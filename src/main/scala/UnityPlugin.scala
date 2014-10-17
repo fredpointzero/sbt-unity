@@ -124,7 +124,12 @@ object UnityPlugin extends sbt.Plugin{
     libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage")
 
   ) ++ inConfig(Compile)(Seq(
-    unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
+    unitySource := Seq(
+      sourceDirectory.value / SETTINGS_FOLDER_NAME,
+      sourceDirectory.value / SOURCES_FOLDER_NAME,
+      sourceDirectory.value / PLUGINS_FOLDER_NAME,
+      sourceDirectory.value / PLUGINS_EDITOR_FOLDER_NAME
+    ),
     unmanagedSourceDirectories := unitySource.value,
 
     // Workspace
@@ -132,9 +137,13 @@ object UnityPlugin extends sbt.Plugin{
     generateWorkspace := generateWorkspaceTaskIn(Compile).value
   )) ++ inConfig(Test)(Seq(
     unitySource := Seq(
+      sourceDirectory.value / SETTINGS_FOLDER_NAME,
       sourceDirectory.value / SOURCES_FOLDER_NAME,
       (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      sourceDirectory.value / SETTINGS_FOLDER_NAME
+      sourceDirectory.value / PLUGINS_FOLDER_NAME,
+      (sourceDirectory in Compile).value / PLUGINS_FOLDER_NAME,
+      sourceDirectory.value / PLUGINS_EDITOR_FOLDER_NAME,
+      (sourceDirectory in Compile).value / PLUGINS_EDITOR_FOLDER_NAME
     ),
     unmanagedSourceDirectories := unitySource.value,
 
@@ -150,17 +159,20 @@ object UnityPlugin extends sbt.Plugin{
     generateWorkspace := generateWorkspaceTaskIn(Test).value
   ))
 
-  def extractSourceDirectoryContext(path:File):String =
-    extractAnyDirectoryContext(path, SOURCES_FOLDER_NAME);
+  val SOURCES_FOLDER_NAME = "runtime_resources";
+  val SETTINGS_FOLDER_NAME = "unity_settings";
+  val PLUGINS_FOLDER_NAME = "plugins_resources";
+  val PLUGINS_EDITOR_FOLDER_NAME = "plugins_editor_resources";
+  val ANY_PATH_PATTERN = "([^\\\\/]*)(?:\\\\|/)([^\\\\/]*)$".r;
 
-  def extractSettingsDirectoryContext(path:File):String =
-    extractAnyDirectoryContext(path, SETTINGS_FOLDER_NAME);
+  val SEARCHED_FOLDERS = Map(
+    SOURCES_FOLDER_NAME -> { (normName:String, contextSuffix:String) => s"Assets/${normName}${contextSuffix}" },
+    PLUGINS_FOLDER_NAME -> { (normName:String, contextSuffix:String) => s"Assets/Plugins/${normName}${contextSuffix}" },
+    PLUGINS_EDITOR_FOLDER_NAME -> { (normName:String, contextSuffix:String) => s"Assets/Plugins/Editor/${normName}${contextSuffix}" },
+    SETTINGS_FOLDER_NAME -> { (normName:String, contextSuffix:String) => "ProjectSettings" }
+  );
 
-  private val SOURCES_FOLDER_NAME = "runtime_resources";
-  private val SETTINGS_FOLDER_NAME = "unity_settings";
-  private val ANY_PATH_PATTERN = "([^\\\\/]*)(?:\\\\|/)([^\\\\/]*)$".r;
-
-  private def extractAnyDirectoryContext(path:File, folderName:String):String = {
+  def extractAnyDirectoryContext(path:File, folderName:String):String = {
     val matches = ANY_PATH_PATTERN findAllIn(path toString);
     if (matches.hasNext && matches.group(2) == folderName) {
       val context = matches.group(1);
@@ -229,11 +241,6 @@ object UnityPlugin extends sbt.Plugin{
   }
 
   private def generateWorkspaceTaskIn(c:Configuration) = Def.task {
-    val assetDirectory = workspaceDirectory.value / "Assets";
-    // Make directories if necessary
-    if (!assetDirectory.exists()) {
-      assetDirectory.mkdirs();
-    }
 
     // Create the Unity project
     if (!(workspaceDirectory.value / "Library").exists()) {
@@ -252,37 +259,39 @@ object UnityPlugin extends sbt.Plugin{
       }
     }
 
-    for (sourceDir <- unitySource.value) {
-      val sourcesContext = extractSourceDirectoryContext(sourceDir);
-      if (sourcesContext != null) {
-        val suffix = if (sourcesContext == "main") "" else s"_${sourcesContext}";
-        val linkedDirectory = assetDirectory / s"${normalizedName.value}$suffix";
-        // Replace the target and create the symlink
-        if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
-          streams.value.log.info(s"Replacing directory $linkedDirectory by a symlink");
-          linkedDirectory.delete();
-        }
-        if (!linkedDirectory.exists()) {
-          if(sourceDir.exists()) {
-            Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+    val linkToPerform = unitySource.value
+      .filter(sourceDir => SEARCHED_FOLDERS.exists(folder => extractAnyDirectoryContext(sourceDir, folder._1) != null))
+      .collect({
+      case sourceDir => {
+        val contextPair = SEARCHED_FOLDERS.collectFirst({
+          case folder if extractAnyDirectoryContext(sourceDir, folder._1) != null =>
+            (extractAnyDirectoryContext(sourceDir, folder._1), folder._2)
+        }).head;
+        val contextSuffix = if (contextPair._1 == "main") "" else s"_${contextPair._1}";
+        (sourceDir, workspaceDirectory.value / contextPair._2(normalizedName.value, contextSuffix));
+      }
+    });
+
+    for((sourceDir, linkDir) <- linkToPerform) {
+      // Replace the target and create the symlink
+      if (linkDir.exists() && !Files.isSymbolicLink(linkDir toPath)) {
+        streams.value.log.info(s"Replacing directory $linkDir by a symlink");
+        linkDir.delete();
+      }
+      if (!linkDir.exists()) {
+        if(sourceDir.exists()) {
+          val parentLinkDir = file(linkDir.getParent());
+          if (!parentLinkDir.exists()) {
+            parentLinkDir.mkdirs();
           }
-          else {
-            streams.value.log.info(s"Skipping $linkedDirectory because $sourceDir does not exists");
-          }
+          Files.createSymbolicLink(linkDir toPath, sourceDir toPath);
         }
         else {
-          streams.value.log.info(s"Skipping $linkedDirectory as it already exists");
+          streams.value.log.info(s"Skipping $linkDir because $sourceDir does not exists");
         }
       }
-
-      val settingsContext = extractSettingsDirectoryContext(sourceDir);
-      if (settingsContext != null && sourceDir.exists()) {
-        val targetLink = workspaceDirectory.value / "ProjectSettings";
-        if(targetLink.exists()) {
-          streams.value.log.info(s"Deleting existing setting: $targetLink");
-          IO.delete(targetLink);
-        }
-        Files.createSymbolicLink(targetLink toPath, sourceDir toPath);
+      else {
+        streams.value.log.info(s"Skipping $linkDir as it already exists");
       }
     }
 
