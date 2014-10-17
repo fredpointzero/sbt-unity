@@ -103,7 +103,7 @@ object UnityWrapper {
       "-quit",
       "-logFile",
       logFile.getAbsolutePath(),
-      "-projectPath ",
+      "-projectPath",
       projectPath.getAbsolutePath(),
       s"-$buildMethod",
       targetPath).!;
@@ -134,7 +134,7 @@ object UnityWrapper {
         executable.getAbsolutePath(),
         "-batchMode",
         "-quit",
-        "-projectPath ",
+        "-projectPath",
         projectPath.getAbsolutePath(),
         "-logFile", logFile.toString(),
         "-executeMethod",
@@ -148,7 +148,7 @@ object UnityWrapper {
         executable.getAbsolutePath(),
         "-batchMode",
         "-quit",
-        "-projectPath ",
+        "-projectPath",
         projectPath.getAbsolutePath(),
         "-logFile", logFile.toString(),
         "-exportPackage"
@@ -173,7 +173,7 @@ object UnityWrapper {
 
     val result = (List(executable.getAbsolutePath(), "-batchMode") ++
     (if (quit) Some("-quit") else None) ++
-    List("-projectPath ",
+    List("-projectPath",
       projectPath.getAbsolutePath(),
       "-logFile", logFile.toString(),
       "-executeMethod"
@@ -197,7 +197,7 @@ object UnityWrapper {
       executable.getAbsolutePath(),
       "-batchMode",
       "-quit",
-      "-projectPath ", projectPath.getAbsolutePath(),
+      "-projectPath", projectPath.getAbsolutePath(),
       "-logFile", logFile.getAbsolutePath(),
       "-importPackage", packageFile.getAbsolutePath()
     ) !;
