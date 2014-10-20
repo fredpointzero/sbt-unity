@@ -38,7 +38,7 @@ object UnityPlugin extends sbt.Plugin{
     val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
     val unityIntegrationTestSkip = SettingKey[Boolean]("unity-integration-test-skip", "Skip integration test")
 
-    val unityHooks = SettingKey[Seq[(Hook.Hook, String, Seq[String], Boolean)]]("unity-hooks", "Hooks for Unity methods")
+    val unityHooks = SettingKey[Seq[(Hook.Value, String, Seq[String], Boolean)]]("unity-hooks", "Hooks for Unity methods")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -58,16 +58,16 @@ object UnityPlugin extends sbt.Plugin{
       crossTarget := target.value / crossPlatform.value.toString(),
 
       compile := {
-        runHooks(Hook.PreCompile).value;
+        val x1 = generateWorkspace.value;
         compileTask.value;
-        runHooks(Hook.PostCompile).value;
         Analysis.Empty;
       },
       products <<= productsTask,
       artifact := artifactSetting.value,
       run := runTask.value,
       packageBin := {
-        runHooks(Hook.PrePackage);
+        val x1 = compile.value;
+        runHooks(Hook.PrePackage, unityHooks.value, workspaceDirectory.value, streams.value.log);
         packageBin.value;
       }
     ))
@@ -92,16 +92,17 @@ object UnityPlugin extends sbt.Plugin{
       // Tasks
       products <<= Def.task { Nil },
       compile := {
-        runHooks(Hook.PreCompile).value;
         val x1 = generateWorkspace.value;
-        runHooks(Hook.PostCompile).value;
+        runHooks(Hook.PreCompile, unityHooks.value, workspaceDirectory.value, streams.value.log);
+        runHooks(Hook.PostCompile, unityHooks.value, workspaceDirectory.value, streams.value.log);
         Analysis.Empty;
       },
       artifact in packageBin := { (artifact in packageBin).value.copy(`type` = "unitypackage", extension = "unitypackage"); },
       packageBin := {
-        runHooks(Hook.PrePackage).value;
-
         val x1 = compile.value;
+        val x2 = generateWorkspace.value;
+        runHooks(Hook.PrePackage, unityHooks.value, workspaceDirectory.value, streams.value.log);
+
         UnityWrapper.buildUnityPackage(
           workspaceDirectory.value,
           (artifactPath in packageBin).value,
@@ -172,10 +173,15 @@ object UnityPlugin extends sbt.Plugin{
     unityUnitTestFilters in test := Seq(),
     unityUnitTestCategories in test := Seq(),
 
-    sbt.Keys.test := runHooks(Hook.PreTest),
-    sbt.Keys.test <<= testTaskIn(test),
-    sbt.Keys.test <<= runHooks(Hook.PostTest),
-    sbt.Keys.testOnly := testTaskIn(testOnly).value,
+    sbt.Keys.test := {
+      compile.value;
+      testTaskIn(test).value;
+    },
+
+    sbt.Keys.testOnly := {
+      compile.value;
+      testTaskIn(testOnly).value;
+    },
 
     // Workspace
     workspaceDirectory := target.value / "test-workspace",
@@ -209,6 +215,8 @@ object UnityPlugin extends sbt.Plugin{
   private def testTaskIn(key:Scoped) = Def.task {
     val x1 = generateWorkspace.value;
 
+    runHooks(Hook.PreTest, unityHooks.value, workspaceDirectory.value, streams.value.log);
+
     // Unit Tests
     if (!unityUnitTestSkip.value)
     {
@@ -239,6 +247,8 @@ object UnityPlugin extends sbt.Plugin{
         Seq("-resultsFileDirectory=" + resultDirectory) ++ scenes ++ platform,
         false);
     }
+
+    runHooks(Hook.PostTest, unityHooks.value, workspaceDirectory.value, streams.value.log);
   }
 
   private def artifactSetting = Def.setting { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
@@ -255,11 +265,17 @@ object UnityPlugin extends sbt.Plugin{
   }
 
   private def compileTask = Def.task {
+    val x1 = generateWorkspace.value;
+
+    runHooks(Hook.PreCompile, unityHooks.value, workspaceDirectory.value, streams.value.log);
+
     if(!crossTarget.value.exists()) {
       crossTarget.value.mkdirs();
     }
-    val x1 = generateWorkspace.value;
     UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
+
+    runHooks(Hook.PostCompile, unityHooks.value, workspaceDirectory.value, streams.value.log);
+
     Analysis.Empty;
   }
 
@@ -321,12 +337,16 @@ object UnityPlugin extends sbt.Plugin{
     workspaceDirectory.value;
   }
 
-  private def runHooks(hookType: Hook.Hook) = Def.task {
-    for((hook:Hook.Hook, method:String, args:Seq[String], quit:Boolean) <- unityHooks.value.filter(_._1 == hookType)) {
+  private def runHooks(hookType: Hook.Hook,
+                       hooks:Seq[(Hook.Value, String, Seq[String], Boolean)],
+                       workspaceDir: File,
+                       log:Logger) {
+    for((hook:Hook.Hook, method:String, args:Seq[String], quit:Boolean) <- hooks.filter(_._1 == hookType)) {
+      log.info(s"[$hook] Calling $method(${args.reduce((l,r) => s"$l,$r")}})");
       UnityWrapper.callUnityEditorMethod(
-        workspaceDirectory.value,
-        workspaceDirectory.value / s"${hook}-${method}",
-        streams.value.log,
+        workspaceDir,
+        workspaceDir / s"${hook}-${method}.log",
+        log,
         method,
         args,
         quit
