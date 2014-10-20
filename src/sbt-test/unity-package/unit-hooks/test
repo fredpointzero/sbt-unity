@@ -1,0 +1,12 @@
+# Copyright (c) 2014 Frédéric Vauchelles
+# See the file license.txt for copying permission.
+
+# Execute the build pipeline
+> test
+> package
+
+$ exists target/precompile.txt
+$ exists target/postcompile.txt
+$ exists target/pretest.txt
+$ exists target/posttest.txt
+$ exists target/prepackage.txt
