@@ -12,6 +12,11 @@ import sbt.inc.Analysis
 object UnityPlugin extends sbt.Plugin{
   import UnityPlugin.UnityKeys._
 
+  object Hook extends Enumeration {
+    type Hook = Value;
+    val PreCompile, PostCompile, PreTest, PostTest, PrePackage = Value;
+  }
+
   object UnityKeys {
     // Paths
     val unitySource = SettingKey[Seq[File]]("unity-source", "Default Unity source directories")
@@ -32,6 +37,8 @@ object UnityPlugin extends sbt.Plugin{
     val unityIntegrationTestScenes = SettingKey[Seq[String]]("unity-integration-test-scenes", "Scenes to execute during the integration tests")
     val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
     val unityIntegrationTestSkip = SettingKey[Boolean]("unity-integration-test-skip", "Skip integration test")
+
+    val unityHooks = SettingKey[Seq[(Hook.Hook, String, Seq[String], Boolean)]]("unity-hooks", "Hooks for Unity methods")
   }
 
   def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -50,10 +57,19 @@ object UnityPlugin extends sbt.Plugin{
     inConfig(c)(Seq(
       crossTarget := target.value / crossPlatform.value.toString(),
 
-      compile := compileTask.value,
+      compile := {
+        runHooks(Hook.PreCompile).value;
+        compileTask.value;
+        runHooks(Hook.PostCompile).value;
+        Analysis.Empty;
+      },
       products <<= productsTask,
       artifact := artifactSetting.value,
-      run := runTask.value
+      run := runTask.value,
+      packageBin := {
+        runHooks(Hook.PrePackage);
+        packageBin.value;
+      }
     ))
 
   def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
@@ -76,11 +92,15 @@ object UnityPlugin extends sbt.Plugin{
       // Tasks
       products <<= Def.task { Nil },
       compile := {
+        runHooks(Hook.PreCompile).value;
         val x1 = generateWorkspace.value;
+        runHooks(Hook.PostCompile).value;
         Analysis.Empty;
       },
       artifact in packageBin := { (artifact in packageBin).value.copy(`type` = "unitypackage", extension = "unitypackage"); },
       packageBin := {
+        runHooks(Hook.PrePackage).value;
+
         val x1 = compile.value;
         UnityWrapper.buildUnityPackage(
           workspaceDirectory.value,
@@ -110,6 +130,7 @@ object UnityPlugin extends sbt.Plugin{
     unityIntegrationTestSkip := false,
     unityPackageToolsVersion := version.value,
     unityTestToolsVersion := "1.4.1",
+    unityHooks := Seq(),
 
     // Add build pipeline package
     libraryDependencies ++= {
@@ -151,7 +172,9 @@ object UnityPlugin extends sbt.Plugin{
     unityUnitTestFilters in test := Seq(),
     unityUnitTestCategories in test := Seq(),
 
-    sbt.Keys.test := testTaskIn(test).value,
+    sbt.Keys.test := runHooks(Hook.PreTest),
+    sbt.Keys.test <<= testTaskIn(test),
+    sbt.Keys.test <<= runHooks(Hook.PostTest),
     sbt.Keys.testOnly := testTaskIn(testOnly).value,
 
     // Workspace
@@ -296,5 +319,18 @@ object UnityPlugin extends sbt.Plugin{
     }
 
     workspaceDirectory.value;
+  }
+
+  private def runHooks(hookType: Hook.Hook) = Def.task {
+    for((hook:Hook.Hook, method:String, args:Seq[String], quit:Boolean) <- unityHooks.value.filter(_._1 == hookType)) {
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory.value,
+        workspaceDirectory.value / s"${hook}-${method}",
+        streams.value.log,
+        method,
+        args,
+        quit
+      );
+    }
   }
 }
