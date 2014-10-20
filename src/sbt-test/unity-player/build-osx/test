@@ -1,8 +1,7 @@
 # Copyright (c) 2014 Frédéric Vauchelles
 # See the file license.txt for copying permission.
 
-# Build Windows 32 bit player
-> set UnityKeys.crossPlatform := UnityWrapper.TargetPlatform.OSXUniversal
-$ pause
+# Build OSX player
+> set UnityKeys.crossPlatform := UnityWrapper.TargetPlatform.OSX
 > compile
-$ exists target/OSXUniversal/build-osx.app
+$ exists target/OSX/build-osx.app
