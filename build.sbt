@@ -21,4 +21,4 @@ integrationTestAnyPlatform := "unity-package/* unity-test/* unity-workspace/*"
 
 integrationTestWindowsOnly := "unity-player/*windows*"
 
-integrationTestOSXOnly := ""
+integrationTestOSXOnly := "unity-player/*osx*"
