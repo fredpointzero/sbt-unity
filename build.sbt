@@ -11,7 +11,7 @@ name := "sbt-unity"
 
 organization := "org.fredericvauchelles"
 
-version := "1.2"
+version := "1.3-SNAPSHOT"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0" % Test
 
