@@ -3,15 +3,36 @@
  *
  * See the file license.txt for copying permission.
  */
+
 import java.nio.file.Files
 
+import UnityWrapper.TargetPlatform.TargetPlatform
 import sbt.Keys._
 import sbt._
 import sbt.inc.Analysis
 
-object UnityPlugin extends sbt.Plugin{
+import scala.util.Try
+
+/**
+ * Unity Plugin API
+ *
+ * Use either unityPlayerSettings or unityPackageSettings in your build.sbt file
+ */
+object UnityPlugin extends sbt.Plugin {
+
   import UnityPlugin.UnityKeys._
 
+  /** Defines the step where a hook is possible
+   *
+   */
+  object Hook extends Enumeration {
+    type Hook = Value;
+    val PreCompile, PostCompile, PreTest, PostTest, PrePackage = Value;
+  }
+
+  /** Defines the keys of the plugin
+   *
+   */
   object UnityKeys {
     // Paths
     val unitySource = SettingKey[Seq[File]]("unity-source", "Default Unity source directories")
@@ -26,266 +47,621 @@ object UnityPlugin extends sbt.Plugin{
     val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
     val unityPackageToolsVersion = SettingKey[String]("unity-package-tools-version", "Version of the sbt-unity-package")
 
+    // Unity Tests
     val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
     val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
     val unityUnitTestSkip = SettingKey[Boolean]("unity-unit-test-skip", "Skip unit test")
     val unityIntegrationTestScenes = SettingKey[Seq[String]]("unity-integration-test-scenes", "Scenes to execute during the integration tests")
     val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
     val unityIntegrationTestSkip = SettingKey[Boolean]("unity-integration-test-skip", "Skip integration test")
+
+    // Unity Hooks
+    val unityHooks = SettingKey[Seq[(Hook.Value, String, Seq[String], Boolean)]]("unity-hooks", "Hooks for Unity methods")
   }
 
-  def unityPlayerSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
-    // Cross building
-    crossPlatform := UnityWrapper.TargetPlatform.None,
-    artifactName := {
-      (scalaVersion:ScalaVersion, module:ModuleID, artifact:Artifact) => {
+  /**
+   *
+   * @return Settings for Player Pipeline
+   */
+  def unityPlayerSettings: Seq[Setting[_]] = PlayerPipelineAPI.settings;
+
+  /**
+   *
+   * @return Settings for Unity Package Pipeline
+   */
+  def unityPackageSettings: Seq[Setting[_]] = PackagePipelineAPI.settings;
+
+  /** API for the Player Pipeline
+   *
+   * Pipeline Order:
+    *
+    * Generate Workspace in Test
+    * Pre Compile Hook in Test
+    * Compile in Test
+    * Post Compile Hook in Test
+    * Unit Test in Test
+    * Integration Test in Test
+    *
+    * Generate Workspace in Compile
+    * Pre Compile Hook in Compile
+    * Compile in Compile
+    * Post Compile in Compile
+    * Pre Package in Compile
+    * Package in Compile
+   */
+  object PlayerPipelineAPI {
+
+    /* -------- SETTINGS -------- */
+
+    /**
+     *
+     * @return Settings for the Player Pipeline
+     */
+    def settings: Seq[Setting[_]] = CommonPipelineAPI.settings ++ Seq(
+      // Cross building
+      crossPlatform := UnityWrapper.TargetPlatform.None,
+      crossTarget := target.value / crossPlatform.value.toString(),
+      artifactName := artifactNameSetting.value
+    ) ++ unityPlayerSettingsIn(Compile) ++ unityPlayerSettingsIn(Test)
+
+    /**
+     *
+     * @param c Target Configuration
+     * @return Settings for the Player Pipeline specific for a configuration
+     */
+    private def unityPlayerSettingsIn(c: Configuration) =
+      inConfig(c)(Seq(
+        sbt.Keys.compile := runPostCompileHooksIn(c).value,
+        products <<= productsTask,
+        artifact := artifactSetting.value,
+        run := runTask.value,
+        packageBin := packageBinTaskIn(c).value
+      ))
+
+    /* -------- TASKS -------- */
+
+    private def artifactSetting = Def.setting {
+      Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform");
+    }
+
+    /**
+     * Name: artifact_platform-version(-configuration).extension
+     *
+     * @return Setting of the artifact name
+     */
+    private def artifactNameSetting = Def.setting {
+      (scalaVersion: ScalaVersion, module: ModuleID, artifact: Artifact) => {
         import artifact._
-        val classifierStr = classifier match { case None => ""; case Some(c) => "-" + c }
+        val classifierStr = classifier match {
+          case None => "";
+          case Some(c) => "-" + c
+        }
         artifact.name + "_" + crossPlatform.value + "-" + module.revision + classifierStr + "." + artifact.extension
       }
     }
-  ) ++ unityPlayerSettingsIn(Compile) ++ unityPlayerSettingsIn(Test)
 
-  private def unityPlayerSettingsIn(c:Configuration) =
-    inConfig(c)(Seq(
-      crossTarget := target.value / crossPlatform.value.toString(),
-
-      compile := compileTask.value,
-      products <<= productsTask,
-      artifact := artifactSetting.value,
-      run := runTask.value
-    ))
-
-  def unityPackageSettings: Seq[Setting[_]] = unityCommonSettings ++ Seq(
-    crossVersion := CrossVersion.Disabled,
-    artifactName := {
-      (scalaVersion:ScalaVersion, module:ModuleID, artifact:Artifact) => {
-        import artifact._
-        val classifierStr = classifier match { case None => ""; case Some(c) => "-" + c }
-        artifact.name + "-" + module.revision + classifierStr + "." + artifact.extension
-      }
-    },
-    mappings in (Compile, packageBin) := Seq((file(""), s"Assets/${normalizedName.value}")),
-    skip in run := true,
-    // There is no cross build constraints for unity package
-    crossTarget := target.value
-  ) ++ unityPackageSettingsIn(Compile) ++ unityPackageSettingsIn(Test)
-
-  private def unityPackageSettingsIn(c:Configuration) =
-    inConfig(c)(Seq(
-      // Tasks
-      products <<= Def.task { Nil },
-      compile := {
-        val x1 = generateWorkspace.value;
-        Analysis.Empty;
-      },
-      artifact in packageBin := { (artifact in packageBin).value.copy(`type` = "unitypackage", extension = "unitypackage"); },
-      packageBin := {
-        val x1 = compile.value;
-        UnityWrapper.buildUnityPackage(
-          workspaceDirectory.value,
-          (artifactPath in packageBin).value,
-          file((artifactPath in packageBin).value.toString() + ".log"),
-          (mappings in packageBin).value map { a => a._2 },
-          streams.value.log);
-
-        (artifactPath in packageBin).value;
-      }
-    ))
-
-  private def unityCommonSettings: Seq[Setting[_]] = Seq(
-    // Unity options
-    unityEditorExecutable := UnityWrapper.detectUnityExecutable,
-    mappings.in(Compile, packageBin) <<= (mappings.in(Compile, packageBin), streams) map { (f, s) =>
-      s.log.warn(s"Mapping with ${f.size} file")
-      for((file, path) <- f) s.log.warn(s"$file -> $path");
-      f
-    },
-
-    unityUnitTestFilters := Seq(),
-    unityUnitTestCategories := Seq(),
-    unityUnitTestSkip := false,
-    unityIntegrationTestScenes := Seq(),
-    unityIntegrationTestPlatform := "Windows",
-    unityIntegrationTestSkip := false,
-    unityPackageToolsVersion := version.value,
-    unityTestToolsVersion := "1.4.1",
-
-    // Add build pipeline package
-    libraryDependencies ++= {
-      val v = unityPackageToolsVersion.value;
-      val org = "org.fredericvauchelles";
-      val a = "sbt-unity-package"
-      if (organization.value != org && name.value != a && version.value != v)
-        Seq(org % a % v artifacts Artifact (a, "unitypackage", "unitypackage"))
-      else
-        Seq()
-    },
-    libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage")
-
-  ) ++ inConfig(Compile)(Seq(
-    unitySource := Seq(sourceDirectory.value / SOURCES_FOLDER_NAME, sourceDirectory.value / SETTINGS_FOLDER_NAME),
-    unmanagedSourceDirectories := unitySource.value,
-
-    // Workspace
-    workspaceDirectory := target.value / "workspace",
-    generateWorkspace := generateWorkspaceTaskIn(Compile).value
-  )) ++ inConfig(Test)(Seq(
-    unitySource := Seq(
-      sourceDirectory.value / SOURCES_FOLDER_NAME,
-      (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
-      sourceDirectory.value / SETTINGS_FOLDER_NAME
-    ),
-    unmanagedSourceDirectories := unitySource.value,
-
-    // Force complete unit test in test task
-    unityUnitTestFilters in test := Seq(),
-    unityUnitTestCategories in test := Seq(),
-
-    sbt.Keys.test := testTaskIn(test).value,
-    sbt.Keys.testOnly := testTaskIn(testOnly).value,
-
-    // Workspace
-    workspaceDirectory := target.value / "test-workspace",
-    generateWorkspace := generateWorkspaceTaskIn(Test).value
-  ))
-
-  def extractSourceDirectoryContext(path:File):String =
-    extractAnyDirectoryContext(path, SOURCES_FOLDER_NAME);
-
-  def extractSettingsDirectoryContext(path:File):String =
-    extractAnyDirectoryContext(path, SETTINGS_FOLDER_NAME);
-
-  private val SOURCES_FOLDER_NAME = "runtime_resources";
-  private val SETTINGS_FOLDER_NAME = "unity_settings";
-  private val ANY_PATH_PATTERN = "([^\\\\/]*)(?:\\\\|/)([^\\\\/]*)$".r;
-
-  private def extractAnyDirectoryContext(path:File, folderName:String):String = {
-    val matches = ANY_PATH_PATTERN findAllIn(path toString);
-    if (matches.hasNext && matches.group(2) == folderName) {
-      val context = matches.group(1);
-      return context;
+    private def runTask = Def.task {
+      sbt.Keys.compile.value;
+      val executable = getExecutableForRun(crossTarget.value, normalizedName.value, crossPlatform.value);
+      executable.toString() !;
     }
-    else {
-      return null;
+
+    private def runPreCompileHooksIn(c:Configuration) = Def.task {
+      (streams in c).value.log.info(s"Run Pre Compile Hook In $c");
+      (UnityKeys.generateWorkspace in c).value;
+      if (!(crossTarget in c).value.exists()) {
+        (crossTarget in c).value.mkdirs();
+      }
+      CommonPipelineAPI.runHooks(
+        Hook.PreCompile,
+        (unityHooks in c).value,
+        (workspaceDirectory in c).value,
+        (streams in c).value.log
+      );
+    }
+
+    private def compileTaskIn(c: Configuration) = Def.task {
+      (streams in c).value.log.info(s"Compile in $c");
+      runPreCompileHooksIn(c).value;
+      compile(
+        (crossTarget in c).value,
+        (workspaceDirectory in c).value,
+        (crossPlatform in c).value,
+        (normalizedName in c).value,
+        (streams in c).value.log
+      );
+    }
+
+    private def runPostCompileHooksIn(c:Configuration) = Def.task {
+      (streams in c).value.log.info(s"Run Post Compile Hook In $c");
+      val result = compileTaskIn(c).value;
+      CommonPipelineAPI.runHooks(
+        Hook.PostCompile,
+        (unityHooks in c).value,
+        (workspaceDirectory in c).value,
+        (streams in c).value.log
+      );
+      result;
+    }
+
+    private def runPrePackageHooksIn(c:Configuration) = Def.task {
+      (streams in c).value.log.info(s"Run Pre Package Hook In $c");
+      (sbt.Keys.compile in c).value;
+      CommonPipelineAPI.runHooks(
+        Hook.PrePackage,
+        (unityHooks in c).value,
+        (workspaceDirectory in c).value,
+        (streams in c).value.log
+      );
+    }
+
+    private def packageBinTaskIn(c: Configuration) = Def.task {
+      (streams in c).value.log.info(s"Package In $c");
+      runPrePackageHooksIn(c).value;
+      sbt.Keys.packageBin.value;
+    }
+
+    private def productsTask = Def.task {
+      sbt.Keys.compile.value;
+      Seq(crossTarget.value)
+    }
+
+    /* -------- API -------- */
+
+    private def getExecutableForRun(
+                                     crossTarget: File,
+                                     normalizedName: String,
+                                     crossPlatform: TargetPlatform
+                                     ): File = {
+      crossTarget / (normalizedName + "." + UnityWrapper.extensionForPlatform(crossPlatform));
+    }
+
+    private def compile(
+                         crossTarget: File,
+                         workspaceDirectory: File,
+                         crossPlatform: TargetPlatform,
+                         normalizedName: String,
+                         log: Logger
+                         ): Analysis = {
+
+      if (!crossTarget.exists()) {
+        crossTarget.mkdirs();
+      }
+      UnityWrapper.buildUnityPlayer(
+        workspaceDirectory,
+        file(crossTarget.toString() + ".log"),
+        crossPlatform,
+        crossTarget / normalizedName,
+        log
+      );
+
+      Analysis.Empty;
     }
   }
 
-  private def testTaskIn(key:Scoped) = Def.task {
-    val x1 = generateWorkspace.value;
+  /** API For Package Pipeline
+   *
+   * Pipeline Order:
+    *
+    * Generate Workspace in Test
+    * Pre Compile Hook in Test
+    * Post Compile Hook in Test
+    * Unit Test in Test
+    * Integration Test in Test
+    *
+    * Generate Workspace in Compile
+    * Pre Compile Hook in Compile
+    * Post Compile in Compile
+    * Pre Package in Compile
+    * Package in Compile
+   */
+  object PackagePipelineAPI {
 
-    // Unit Tests
-    if (!unityUnitTestSkip.value)
-    {
-      val filters = if((unityUnitTestFilters in key).value.size > 0) Seq("-filter=" + (unityUnitTestFilters in key).value.mkString(",")) else Seq()
-      val categories = if((unityUnitTestCategories in key).value.size > 0) Seq("-categories=" + (unityUnitTestCategories in key).value.mkString(",")) else Seq()
-      UnityWrapper.callUnityEditorMethod(
-        workspaceDirectory.value,
-        workspaceDirectory.value / "test.log",
-        streams.value.log,
-        "UnityTest.Batch.RunUnitTests",
-        Seq("-resultFilePath=" + workspaceDirectory.value / "../unit-test-report.xml") ++ filters ++ categories);
+    /* -------- SETTINGS -------- */
+
+    def settings: Seq[Setting[_]] = CommonPipelineAPI.settings ++ Seq(
+      crossVersion := CrossVersion.Disabled,
+      mappings in(Compile, packageBin) := Seq((file(""), s"Assets/${normalizedName.value}")),
+      skip in run := true,
+      // There is no cross build constraints for unity package
+      crossTarget := target.value
+    ) ++ unityPackageSettingsIn(Compile) ++ unityPackageSettingsIn(Test)
+
+    private def unityPackageSettingsIn(c: Configuration) =
+      inConfig(c)(Seq(
+        // Tasks
+        products <<= Def.task {
+          Nil
+        },
+        artifactName := artifactNameSettingIn(c).value,
+        compile := runPostCompileHookTaskIn(c).value,
+        artifact in packageBin := artifactSettingIn(c).value,
+        packageBin := packageBinTaskIn(c).value
+      ));
+
+    /* -------- TASKS -------- */
+
+    private def artifactNameSettingIn(c: Configuration) = Def.setting {
+      (scalaVersion: ScalaVersion, module: ModuleID, artifact: Artifact) => {
+        import artifact._
+        val classifierStr = classifier match {
+          case None => "";
+          case Some(c) => "-" + c
+        }
+        artifact.name + "-" + module.revision + classifierStr + "." + artifact.extension
+      }
     }
 
-    // Integration Tests
-    if (!unityIntegrationTestSkip.value)
-    {
-      val resultDirectory = workspaceDirectory.value / "../resultDirectory";
+    private def artifactSettingIn(c: Configuration) = Def.setting {
+      (artifact in(c, packageBin)).value.copy(`type` = "unitypackage", extension = "unitypackage");
+    }
+
+    private def runPreCompileHookTaskIn(c:Configuration) = Def.task {
+      (streams in c).value.log.info(s"Run Pre Compile Hook In $c");
+      (UnityKeys.generateWorkspace in c).value;
+      CommonPipelineAPI.runHooks(
+        Hook.PreCompile,
+        (unityHooks in c).value,
+        (workspaceDirectory in c).value,
+        (streams in c).value.log
+      );
+    }
+
+    private def compileTaskIn(c: Configuration) = Def.task {
+      (streams in c).value.log.info(s"Compile in $c");
+      runPreCompileHookTaskIn(c).value;
+      Analysis.Empty;
+    }
+
+    private def runPostCompileHookTaskIn(c:Configuration) = Def.task {
+      (streams in c).value.log.info(s"Run Post Compile Hook In $c");
+      val result = compileTaskIn(c).value;
+      CommonPipelineAPI.runHooks(
+        Hook.PostCompile,
+        (unityHooks in c).value,
+        (workspaceDirectory in c).value,
+        (streams in c).value.log
+      );
+      result;
+    }
+
+    private def runPrePackageHooksIn(c:Configuration) = Def.task {
+      (streams in c).value.log.info(s"Run Pre Package Hook In $c");
+      (sbt.Keys.compile in c).value;
+      CommonPipelineAPI.runHooks(
+        Hook.PrePackage,
+        (unityHooks in c).value,
+        (workspaceDirectory in c).value,
+        (streams in c).value.log
+      );
+    }
+
+    private def packageBinTaskIn(c: Configuration) = Def.task {
+      (streams in c).value.log.info(s"Package in $c");
+      runPrePackageHooksIn(c).value;
+
+      UnityWrapper.buildUnityPackage(
+        (workspaceDirectory in c).value,
+        (artifactPath in(c, packageBin)).value,
+        file((artifactPath in(c, packageBin)).value.toString() + ".log"),
+        (mappings in(c, packageBin)).value map { a => a._2},
+        (streams in c).value.log);
+
+      (artifactPath in(c, packageBin)).value;
+    }
+
+    /* -------- API -------- */
+  }
+
+  /** API Common for each pipeline
+   *
+   */
+  object CommonPipelineAPI {
+
+    val SOURCES_FOLDER_NAME = "runtime_resources";
+    val SETTINGS_FOLDER_NAME = "unity_settings";
+    val PLUGINS_FOLDER_NAME = "plugins_resources";
+    val PLUGINS_EDITOR_FOLDER_NAME = "plugins_editor_resources";
+    val ANY_PATH_PATTERN = "([^\\\\/]*)(?:\\\\|/)([^\\\\/]*)$".r;
+
+    val SEARCHED_FOLDERS = Map(
+      SOURCES_FOLDER_NAME -> { (normName: String, contextSuffix: String) => s"Assets/${normName}${contextSuffix}"},
+      PLUGINS_FOLDER_NAME -> { (normName: String, contextSuffix: String) => s"Assets/Plugins/${normName}${contextSuffix}"},
+      PLUGINS_EDITOR_FOLDER_NAME -> { (normName: String, contextSuffix: String) => s"Assets/Plugins/Editor/${normName}${contextSuffix}"},
+      SETTINGS_FOLDER_NAME -> { (normName: String, contextSuffix: String) => "ProjectSettings"}
+    );
+
+    /* -------- SETTINGS -------- */
+
+    def settings: Seq[Setting[_]] = Seq(
+      // Unity options
+      unityEditorExecutable := UnityWrapper.detectUnityExecutable,
+      mappings.in(Compile, packageBin) <<= (mappings.in(Compile, packageBin), streams) map { (f, s) =>
+        s.log.warn(s"Mapping with ${f.size} file")
+        for ((file, path) <- f) s.log.warn(s"$file -> $path");
+        f
+      },
+
+      unityUnitTestFilters := Seq(),
+      unityUnitTestCategories := Seq(),
+      unityUnitTestSkip := false,
+      unityIntegrationTestScenes := Seq(),
+      unityIntegrationTestPlatform := "Windows",
+      unityIntegrationTestSkip := false,
+      unityPackageToolsVersion := version.value,
+      unityTestToolsVersion := "1.4.1",
+      unityHooks := Seq(),
+
+      // Add build pipeline package
+      libraryDependencies ++= {
+        val v = unityPackageToolsVersion.value;
+        val org = "org.fredericvauchelles";
+        val a = "sbt-unity-package"
+        if (organization.value != org && name.value != a && version.value != v)
+          Seq(org % a % v artifacts Artifact(a, "unitypackage", "unitypackage"))
+        else
+          Seq()
+      },
+      libraryDependencies += "com.unity3d" % "test-tools" % unityTestToolsVersion.value % Test artifacts Artifact("test-tools", "unitypackage", "unitypackage")
+
+    ) ++ inConfig(Compile)(Seq(
+      unitySource := Seq(
+        sourceDirectory.value / SETTINGS_FOLDER_NAME,
+        sourceDirectory.value / SOURCES_FOLDER_NAME,
+        sourceDirectory.value / PLUGINS_FOLDER_NAME,
+        sourceDirectory.value / PLUGINS_EDITOR_FOLDER_NAME
+      ),
+      unmanagedSourceDirectories := unitySource.value,
+
+      // Workspace
+      workspaceDirectory := target.value / "workspace",
+      UnityKeys.generateWorkspace := generateWorkspaceTaskIn(Compile).value
+    )) ++ inConfig(Test)(Seq(
+      unitySource := Seq(
+        sourceDirectory.value / SETTINGS_FOLDER_NAME,
+        sourceDirectory.value / SOURCES_FOLDER_NAME,
+        (sourceDirectory in Compile).value / SOURCES_FOLDER_NAME,
+        sourceDirectory.value / PLUGINS_FOLDER_NAME,
+        (sourceDirectory in Compile).value / PLUGINS_FOLDER_NAME,
+        sourceDirectory.value / PLUGINS_EDITOR_FOLDER_NAME,
+        (sourceDirectory in Compile).value / PLUGINS_EDITOR_FOLDER_NAME
+      ),
+      unmanagedSourceDirectories := unitySource.value,
+
+      // Force complete unit test in test task
+      unityUnitTestFilters in test := Seq(),
+      unityUnitTestCategories in test := Seq(),
+
+      sbt.Keys.test := runAllTestIn(test).value,
+      sbt.Keys.testOnly := runAllTestIn(testOnly).value,
+
+      // Workspace
+      workspaceDirectory := target.value / "test-workspace",
+      UnityKeys.generateWorkspace := generateWorkspaceTaskIn(Test).value
+    ))
+
+    /* -------- TASKS -------- */
+
+    private def runPreTestHookTaskIn(s: Scoped) = Def.task {
+      (streams in s).value.log.info(s"Run Pre Test Hook In $s");
+      (sbt.Keys.compile in s).value;
+      runHooks(Hook.PreTest, (unityHooks in s).value, (workspaceDirectory in s).value, (streams in s).value.log);
+    }
+
+    private def runUnitTestTaskIn(s: Scoped) = Def.task {
+      (streams in s).value.log.info(s"Run Unit Test In $s");
+      runPreTestHookTaskIn(s).value;
+      if (!(unityUnitTestSkip in s).value) {
+        runUnitTest(
+          (unityUnitTestFilters in s).value,
+          (unityUnitTestCategories in s).value,
+          (workspaceDirectory in s).value,
+          (streams in s).value.log
+        );
+      }
+    }
+
+    private def runIntegrationTestTaskIn(s: Scoped) = Def.task {
+      (streams in s).value.log.info(s"Run Integration Test In $s");
+      runUnitTestTaskIn(s).value;
+      if (!(unityIntegrationTestSkip in s).value) {
+        runIntegrationTest(
+          (unityIntegrationTestScenes in s).value,
+          (unityIntegrationTestPlatform in s).value,
+          (workspaceDirectory in s).value,
+          (streams in s).value.log
+        );
+      }
+    }
+
+    private def runPostTestTaskHookIn(s: Scoped) = Def.task {
+      (streams in s).value.log.info(s"Run Post Test Hook In $s");
+      runIntegrationTestTaskIn(s).value;
+      runHooks(Hook.PostTest, (unityHooks in s).value, (workspaceDirectory in s).value, (streams in s).value.log);
+    }
+
+    private def runAllTestIn(s: Scoped) = Def.task {
+      (streams in s).value.log.info(s"Run All Test In $s");
+      runPostTestTaskHookIn(s).value;
+    }
+
+    private def generateWorkspaceTaskIn(c: Configuration) = Def.task {
+      (streams in c).value.log.info(s"Generate Workspace Task In $c");
+      generateWorkspace(
+        (workspaceDirectory in c).value,
+        (target in c).value,
+        (unmanagedBase in c).value,
+        (update in c).value,
+        c.name,
+        (unitySource in c).value,
+        (normalizedName in c).value,
+        (streams in c).value.log
+      );
+
+      (workspaceDirectory in c).value;
+    }
+
+    /* -------- API -------- */
+
+    /** Run the Unity Editor methods hooks
+      *
+      * @param hookType type of the hook to execute
+      * @param hooks hook definitions
+      * @param workspaceDirectory directory of the workspace to execute hooks on
+      * @param log logger
+      */
+    def runHooks(
+                  hookType: Hook.Hook,
+                  hooks: Seq[(Hook.Value, String, Seq[String], Boolean)],
+                  workspaceDirectory: File,
+                  log: Logger) {
+      for ((hook: Hook.Hook, method: String, args: Seq[String], quit: Boolean) <- hooks.filter(_._1 == hookType)) {
+        log.info(s"[$hook] Calling $method(${args.reduce((l, r) => s"$l,$r")}})");
+        UnityWrapper.callUnityEditorMethod(
+          workspaceDirectory,
+          workspaceDirectory / s"${hook}-${method}.log",
+          log,
+          method,
+          args,
+          quit
+        );
+      }
+    }
+
+    /** Extract a directory context for a source directory
+     *
+      * Used to get the kind of symlink to perform
+      *
+     * @param path
+     * @param folderName
+     * @return directory context (main use cases: main, test)
+     */
+    def extractAnyDirectoryContext(path: File, folderName: String): String = {
+      val matches = ANY_PATH_PATTERN findAllIn (path toString);
+      if (matches.hasNext && matches.group(2) == folderName) {
+        val context = matches.group(1);
+        return context;
+      }
+      else {
+        return null;
+      }
+    }
+
+    private def runUnitTest(
+                             unityUnitTestFilters: Seq[String],
+                             unityUnitTestCategories: Seq[String],
+                             workspaceDirectory: File,
+                             log: Logger
+                             ): Unit = {
+      val filters = if (unityUnitTestFilters.size > 0) Seq("-filter=" + unityUnitTestFilters.mkString(",")) else Seq()
+      val categories = if (unityUnitTestCategories.size > 0) Seq("-categories=" + unityUnitTestCategories.mkString(",")) else Seq()
+      UnityWrapper.callUnityEditorMethod(
+        workspaceDirectory,
+        workspaceDirectory / "test.log",
+        log,
+        "UnityTest.Batch.RunUnitTests",
+        Seq("-resultFilePath=" + workspaceDirectory / "../unit-test-report.xml") ++ filters ++ categories);
+    }
+
+    private def runIntegrationTest(
+                                    unityIntegrationTestScenes: Seq[String],
+                                    unityIntegrationTestPlatform: String,
+                                    workspaceDirectory: File,
+                                    log: Logger
+                                    ): Unit = {
+      val resultDirectory = workspaceDirectory / "../resultDirectory";
       if (!resultDirectory.exists()) {
         resultDirectory.mkdirs();
       }
-      val scenes = if((unityIntegrationTestScenes in key).value.size > 0) Seq("-testscenes=" + (unityIntegrationTestScenes in key).value.mkString(",")) else Seq()
-      val platform = if((unityIntegrationTestPlatform in key).value.size > 0) Seq("-targetPlatform=" + (unityIntegrationTestPlatform in key).value) else Seq()
+      val scenes = if (unityIntegrationTestScenes.size > 0) Seq("-testscenes=" + unityIntegrationTestScenes.mkString(",")) else Seq()
+      val platform = if (unityIntegrationTestPlatform.size > 0) Seq("-targetPlatform=" + unityIntegrationTestPlatform) else Seq()
       UnityWrapper.callUnityEditorMethod(
-        workspaceDirectory.value,
-        workspaceDirectory.value / "test.log",
-        streams.value.log,
+        workspaceDirectory,
+        workspaceDirectory / "test.log",
+        log,
         "UnityTest.Batch.RunIntegrationTests",
         Seq("-resultsFileDirectory=" + resultDirectory) ++ scenes ++ platform,
         false);
     }
-  }
 
-  private def artifactSetting = Def.setting { Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform"); }
+    /** Generate the workspace for Unity
+      *
+      * - Symlink runtime_resources
+      * - Symlink unity_settings
+      * - Create Unity project
+      *
+      * @param workspaceDirectory directory to use as workspace
+      * @param target target directory of sbt project
+      * @param unmanagedBase directory of unmanaged libraries
+      * @param update update report of the task
+      * @param configurationName name of the current configuration
+      * @param unitySource source directories for the Unity project
+      * @param normalizedName normalized name of the project
+      * @param log logger
+      */
+    private def generateWorkspace(
+                                   workspaceDirectory: File,
+                                   target: File,
+                                   unmanagedBase: File,
+                                   update: UpdateReport,
+                                   configurationName: String,
+                                   unitySource: Seq[File],
+                                   normalizedName: String,
+                                   log: Logger): Unit = {
 
-  private def productsTask = Def.task {
-    val x1 = compile.value;
-    Seq(crossTarget.value)
-  }
-
-  private def runTask = Def.task {
-    val x1 = compile.value;
-    val executable = crossTarget.value / (normalizedName.value + "." + UnityWrapper.extensionForPlatform(crossPlatform.value));
-    executable.toString() !;
-  }
-
-  private def compileTask = Def.task {
-    if(!crossTarget.value.exists()) {
-      crossTarget.value.mkdirs();
-    }
-    val x1 = generateWorkspace.value;
-    UnityWrapper.buildUnityPlayer(workspaceDirectory.value, file(crossTarget.value.toString() + ".log"), crossPlatform.value, crossTarget.value / normalizedName.value, streams.value.log);
-    Analysis.Empty;
-  }
-
-  private def generateWorkspaceTaskIn(c:Configuration) = Def.task {
-    val assetDirectory = workspaceDirectory.value / "Assets";
-    // Make directories if necessary
-    if (!assetDirectory.exists()) {
-      assetDirectory.mkdirs();
-    }
-
-    // Create the Unity project
-    if (!(workspaceDirectory.value / "Library").exists()) {
-      UnityWrapper.createUnityProjectAt(workspaceDirectory.value, target.value / s"${workspaceDirectory.value}.log", streams.value.log);
-    }
-
-    val libFiles:Seq[File] = update.value.matching(
-        artifactFilter(`type`= "unitypackage", extension = "unitypackage") &&
-        configurationFilter(name = c.name)
-        ) ++
-      Option(unmanagedBase.value.listFiles).toList.flatten
-    if (libFiles != null)  {
-      for (packageFile:File <- libFiles.filter(_.ext == "unitypackage")) {
-        streams.value.log.info(s"importing lib: $packageFile")
-        UnityWrapper.importPackage(workspaceDirectory.value, workspaceDirectory.value / s"import-${packageFile.name}.log", packageFile, streams.value.log);
+      // Create the Unity project
+      if (!(workspaceDirectory / "Library").exists()) {
+        UnityWrapper.createUnityProjectAt(workspaceDirectory, target / s"${workspaceDirectory}.log", log);
       }
-    }
 
-    for (sourceDir <- unitySource.value) {
-      val sourcesContext = extractSourceDirectoryContext(sourceDir);
-      if (sourcesContext != null) {
-        val suffix = if (sourcesContext == "main") "" else s"_${sourcesContext}";
-        val linkedDirectory = assetDirectory / s"${normalizedName.value}$suffix";
-        // Replace the target and create the symlink
-        if (linkedDirectory.exists() && !Files.isSymbolicLink(linkedDirectory toPath)) {
-          streams.value.log.info(s"Replacing directory $linkedDirectory by a symlink");
-          linkedDirectory.delete();
+      val libFiles: Seq[File] = update.matching(
+        artifactFilter(`type` = "unitypackage", extension = "unitypackage") &&
+          configurationFilter(name = configurationName)
+      ) ++
+        Option(unmanagedBase.listFiles).toList.flatten
+      if (libFiles != null) {
+        for (packageFile: File <- libFiles.filter(_.ext == "unitypackage")) {
+          log.info(s"importing lib: $packageFile")
+          UnityWrapper.importPackage(workspaceDirectory, workspaceDirectory / s"import-${packageFile.name}.log", packageFile, log);
         }
-        if (!linkedDirectory.exists()) {
-          if(sourceDir.exists()) {
-            Files.createSymbolicLink(linkedDirectory toPath, sourceDir toPath);
+      }
+
+      val linkToPerform = unitySource
+        .filter(sourceDir => SEARCHED_FOLDERS.exists(folder => extractAnyDirectoryContext(sourceDir, folder._1) != null))
+        .collect({
+        case sourceDir => {
+          val contextPair = SEARCHED_FOLDERS.collectFirst({
+            case folder if extractAnyDirectoryContext(sourceDir, folder._1) != null =>
+              (extractAnyDirectoryContext(sourceDir, folder._1), folder._2)
+          }).head;
+          val contextSuffix = if (contextPair._1 == "main") "" else s"_${contextPair._1}";
+          (sourceDir, workspaceDirectory / contextPair._2(normalizedName, contextSuffix));
+        }
+      });
+
+      for ((sourceDir, linkDir) <- linkToPerform) {
+        // Replace the target and create the symlink
+        if (linkDir.exists() && !Files.isSymbolicLink(linkDir toPath)) {
+          log.info(s"Replacing directory $linkDir by a symlink");
+          IO.delete(linkDir);
+        }
+        if (!linkDir.exists()) {
+          if (sourceDir.exists()) {
+            val parentLinkDir = file(linkDir.getParent());
+            if (!parentLinkDir.exists()) {
+              parentLinkDir.mkdirs();
+            }
+            Files.createSymbolicLink(linkDir toPath, sourceDir toPath);
           }
           else {
-            streams.value.log.info(s"Skipping $linkedDirectory because $sourceDir does not exists");
+            log.info(s"Skipping $linkDir because $sourceDir does not exists");
           }
         }
         else {
-          streams.value.log.info(s"Skipping $linkedDirectory as it already exists");
+          log.info(s"Skipping $linkDir as it already exists");
         }
-      }
-
-      val settingsContext = extractSettingsDirectoryContext(sourceDir);
-      if (settingsContext != null && sourceDir.exists()) {
-        val targetLink = workspaceDirectory.value / "ProjectSettings";
-        if(targetLink.exists()) {
-          streams.value.log.info(s"Deleting existing setting: $targetLink");
-          IO.delete(targetLink);
-        }
-        Files.createSymbolicLink(targetLink toPath, sourceDir toPath);
       }
     }
-
-    workspaceDirectory.value;
   }
+
 }

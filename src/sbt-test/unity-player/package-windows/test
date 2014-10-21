@@ -2,7 +2,7 @@
 # See the file license.txt for copying permission.
 
 # Package Windows 32 bit player
-> set UnityKeys.crossPlatform := com.mindwaves_studio.sbt_unity.UnityWrapper.TargetPlatform.Windows
+> set UnityKeys.crossPlatform := UnityWrapper.TargetPlatform.Windows
 > package
 $ exists target/Windows/package-windows_Windows-0.1.jar
 $ exec unzip target/Windows/package-windows_Windows-0.1.jar -d target/package-windows_Windows-0.1/

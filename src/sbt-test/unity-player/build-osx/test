@@ -1,0 +1,7 @@
+# Copyright (c) 2014 Frédéric Vauchelles
+# See the file license.txt for copying permission.
+
+# Build OSX player
+> set UnityKeys.crossPlatform := UnityWrapper.TargetPlatform.OSX
+> compile
+$ exists target/OSX/build-osx.app

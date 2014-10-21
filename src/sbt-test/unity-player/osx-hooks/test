@@ -1,0 +1,19 @@
+# Copyright (c) 2014 Frédéric Vauchelles
+# See the file license.txt for copying permission.
+
+# Build OSX player
+> set UnityKeys.crossPlatform := UnityWrapper.TargetPlatform.OSX
+
+# Execute the build pipeline
+> test
+> package
+
+$ exists target/OSX/precompile-test.txt
+$ exists target/OSX/postcompile-test.txt
+$ exists target/OSX/pretest-test.txt
+$ exists target/OSX/posttest-test.txt
+
+$ exists target/OSX/precompile-compile.txt
+$ exists target/OSX/postcompile-compile.txt
+
+$ exists target/OSX/prepackage-compile.txt
