@@ -11,15 +11,26 @@ import sbt.Keys._
 import sbt._
 import sbt.inc.Analysis
 
+/**
+ * Unity Plugin API
+ *
+ * Use either unityPlayerSettings or unityPackageSettings in your build.sbt file
+ */
 object UnityPlugin extends sbt.Plugin {
 
   import UnityPlugin.UnityKeys._
 
+  /** Defines the step where a hook is possible
+   *
+   */
   object Hook extends Enumeration {
     type Hook = Value;
     val PreCompile, PostCompile, PreTest, PostTest, PrePackage = Value;
   }
 
+  /** Defines the keys of the plugin
+   *
+   */
   object UnityKeys {
     // Paths
     val unitySource = SettingKey[Seq[File]]("unity-source", "Default Unity source directories")
@@ -34,6 +45,7 @@ object UnityPlugin extends sbt.Plugin {
     val unityTestToolsVersion = SettingKey[String]("unity-test-tools-version", "Version of the Unity test tools package to use")
     val unityPackageToolsVersion = SettingKey[String]("unity-package-tools-version", "Version of the sbt-unity-package")
 
+    // Unity Tests
     val unityUnitTestFilters = SettingKey[Seq[String]]("unity-unit-test-filters", "Filter fo Unity Test Tools unit tests")
     val unityUnitTestCategories = SettingKey[Seq[String]]("unity-unit-test-categories", "Categories fo Unity Test Tools unit tests")
     val unityUnitTestSkip = SettingKey[Boolean]("unity-unit-test-skip", "Skip unit test")
@@ -41,17 +53,48 @@ object UnityPlugin extends sbt.Plugin {
     val unityIntegrationTestPlatform = SettingKey[String]("unity-integration-test-platform", "Platform to use for the integration tests")
     val unityIntegrationTestSkip = SettingKey[Boolean]("unity-integration-test-skip", "Skip integration test")
 
+    // Unity Hooks
     val unityHooks = SettingKey[Seq[(Hook.Value, String, Seq[String], Boolean)]]("unity-hooks", "Hooks for Unity methods")
   }
 
+  /**
+   *
+   * @return Settings for Player Pipeline
+   */
   def unityPlayerSettings: Seq[Setting[_]] = PlayerPipelineAPI.settings;
 
+  /**
+   *
+   * @return Settings for Unity Package Pipeline
+   */
   def unityPackageSettings: Seq[Setting[_]] = PackagePipelineAPI.settings;
 
+  /** API for the Player Pipeline
+   *
+   * Pipeline Order:
+    *
+    * Generate Workspace in Test
+    * Pre Compile Hook in Test
+    * Compile in Test
+    * Post Compile Hook in Test
+    * Unit Test in Test
+    * Integration Test in Test
+    *
+    * Generate Workspace in Compile
+    * Pre Compile Hook in Compile
+    * Compile in Compile
+    * Post Compile in Compile
+    * Pre Package in Compile
+    * Package in Compile
+   */
   object PlayerPipelineAPI {
 
     /* -------- SETTINGS -------- */
 
+    /**
+     *
+     * @return Settings for the Player Pipeline
+     */
     def settings: Seq[Setting[_]] = CommonPipelineAPI.settings ++ Seq(
       // Cross building
       crossPlatform := UnityWrapper.TargetPlatform.None,
@@ -59,6 +102,11 @@ object UnityPlugin extends sbt.Plugin {
       artifactName := artifactNameSetting.value
     ) ++ unityPlayerSettingsIn(Compile) ++ unityPlayerSettingsIn(Test)
 
+    /**
+     *
+     * @param c Target Configuration
+     * @return Settings for the Player Pipeline specific for a configuration
+     */
     private def unityPlayerSettingsIn(c: Configuration) =
       inConfig(c)(Seq(
         sbt.Keys.compile := runPostCompileHooksIn(c).value,
@@ -74,6 +122,11 @@ object UnityPlugin extends sbt.Plugin {
       Artifact.apply(name.value, UnityWrapper.extensionForPlatform(crossPlatform.value), "jar", s"${configuration}-$crossPlatform");
     }
 
+    /**
+     * Name: artifact_platform-version(-configuration).extension
+     *
+     * @return Setting of the artifact name
+     */
     private def artifactNameSetting = Def.setting {
       (scalaVersion: ScalaVersion, module: ModuleID, artifact: Artifact) => {
         import artifact._
@@ -184,6 +237,22 @@ object UnityPlugin extends sbt.Plugin {
     }
   }
 
+  /** API For Package Pipeline
+   *
+   * Pipeline Order:
+    *
+    * Generate Workspace in Test
+    * Pre Compile Hook in Test
+    * Post Compile Hook in Test
+    * Unit Test in Test
+    * Integration Test in Test
+    *
+    * Generate Workspace in Compile
+    * Pre Compile Hook in Compile
+    * Post Compile in Compile
+    * Pre Package in Compile
+    * Package in Compile
+   */
   object PackagePipelineAPI {
 
     /* -------- SETTINGS -------- */
@@ -282,6 +351,9 @@ object UnityPlugin extends sbt.Plugin {
     /* -------- API -------- */
   }
 
+  /** API Common for each pipeline
+   *
+   */
   object CommonPipelineAPI {
 
     val SOURCES_FOLDER_NAME = "runtime_resources";
@@ -454,6 +526,14 @@ object UnityPlugin extends sbt.Plugin {
       }
     }
 
+    /** Extract a directory context for a source directory
+     *
+      * Used to get the kind of symlink to perform
+      *
+     * @param path
+     * @param folderName
+     * @return directory context (main use cases: main, test)
+     */
     def extractAnyDirectoryContext(path: File, folderName: String): String = {
       val matches = ANY_PATH_PATTERN findAllIn (path toString);
       if (matches.hasNext && matches.group(2) == folderName) {
