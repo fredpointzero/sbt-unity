@@ -11,6 +11,8 @@ import sbt.Keys._
 import sbt._
 import sbt.inc.Analysis
 
+import scala.util.Try
+
 /**
  * Unity Plugin API
  *
@@ -641,7 +643,7 @@ object UnityPlugin extends sbt.Plugin {
         // Replace the target and create the symlink
         if (linkDir.exists() && !Files.isSymbolicLink(linkDir toPath)) {
           log.info(s"Replacing directory $linkDir by a symlink");
-          linkDir.delete();
+          IO.delete(linkDir);
         }
         if (!linkDir.exists()) {
           if (sourceDir.exists()) {
