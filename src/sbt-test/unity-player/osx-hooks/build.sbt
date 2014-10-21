@@ -17,10 +17,15 @@ UnityKeys.unityIntegrationTestSkip := true
 
 UnityKeys.unityUnitTestSkip := true
 
-UnityKeys.unityHooks := Seq(
-  (Hook.PreCompile, "FV.TouchFile.Touch", Seq((sbt.Keys.crossTarget.value / "precompile.txt").toString), true),
-  (Hook.PostCompile, "FV.TouchFile.Touch", Seq((sbt.Keys.crossTarget.value / "postcompile.txt").toString), true),
-  (Hook.PreTest, "FV.TouchFile.Touch", Seq((sbt.Keys.crossTarget.value / "pretest.txt").toString), true),
-  (Hook.PostTest, "FV.TouchFile.Touch", Seq((sbt.Keys.crossTarget.value / "posttest.txt").toString), true),
-  (Hook.PrePackage, "FV.TouchFile.Touch", Seq((sbt.Keys.crossTarget.value / "prepackage.txt").toString), true)
+UnityKeys.unityHooks in Compile := Seq(
+  (Hook.PreCompile, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Compile).value / "precompile-compile.txt").toString), true),
+  (Hook.PostCompile, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Compile).value / "postcompile-compile.txt").toString), true),
+  (Hook.PrePackage, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Compile).value / "prepackage-compile.txt").toString), true)
+)
+
+UnityKeys.unityHooks in Test := Seq(
+  (Hook.PreCompile, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Test).value / "precompile-test.txt").toString), true),
+  (Hook.PostCompile, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Test).value / "postcompile-test.txt").toString), true),
+  (Hook.PreTest, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Test).value / "pretest-test.txt").toString), true),
+  (Hook.PostTest, "FV.TouchFile.Touch", Seq(((sbt.Keys.crossTarget in Test).value / "posttest-test.txt").toString), true)
 )

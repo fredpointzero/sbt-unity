@@ -9,8 +9,12 @@ $ pause
 > test
 > package
 
-$ exists target/precompile.txt
-$ exists target/postcompile.txt
-$ exists target/pretest.txt
-$ exists target/posttest.txt
-$ exists target/prepackage.txt
+$ exists target/OSX/precompile-test.txt
+$ exists target/OSX/postcompile-test.txt
+$ exists target/OSX/pretest-test.txt
+$ exists target/OSX/posttest-test.txt
+
+$ exists target/OSX/precompile-compile.txt
+$ exists target/OSX/postcompile-compile.txt
+
+$ exists target/OSX/prepackage-compile.txt

@@ -55,12 +55,12 @@ object UnityPlugin extends sbt.Plugin {
     def settings: Seq[Setting[_]] = CommonPipelineAPI.settings ++ Seq(
       // Cross building
       crossPlatform := UnityWrapper.TargetPlatform.None,
+      crossTarget := target.value / crossPlatform.value.toString(),
       artifactName := artifactNameSetting.value
     ) ++ unityPlayerSettingsIn(Compile) ++ unityPlayerSettingsIn(Test)
 
     private def unityPlayerSettingsIn(c: Configuration) =
       inConfig(c)(Seq(
-        crossTarget := target.value / crossPlatform.value.toString(),
         sbt.Keys.compile := runPostCompileHooksIn(c).value,
         products <<= productsTask,
         artifact := artifactSetting.value,
@@ -94,6 +94,9 @@ object UnityPlugin extends sbt.Plugin {
     private def runPreCompileHooksIn(c:Configuration) = Def.task {
       (streams in c).value.log.info(s"Run Pre Compile Hook In $c");
       (UnityKeys.generateWorkspace in c).value;
+      if (!(crossTarget in c).value.exists()) {
+        (crossTarget in c).value.mkdirs();
+      }
       CommonPipelineAPI.runHooks(
         Hook.PreCompile,
         (unityHooks in c).value,
@@ -128,7 +131,7 @@ object UnityPlugin extends sbt.Plugin {
 
     private def runPrePackageHooksIn(c:Configuration) = Def.task {
       (streams in c).value.log.info(s"Run Pre Package Hook In $c");
-      sbt.Keys.test.value;
+      (sbt.Keys.compile in c).value;
       CommonPipelineAPI.runHooks(
         Hook.PrePackage,
         (unityHooks in c).value,
