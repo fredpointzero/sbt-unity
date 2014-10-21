@@ -7,7 +7,7 @@ name := baseDirectory.value.name
 
 version := "0.1"
 
-unityPlayerSettings
+unityPackageSettings
 
 UnityKeys.unityIntegrationTestScenes in Test := Seq("ExampleIntegrationTests")
 

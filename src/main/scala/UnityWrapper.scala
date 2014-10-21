@@ -7,16 +7,30 @@ import sbt._
 
 import scala.io.Source
 
+/** Execute Unity3d Editor from scala
+ *
+ */
 object UnityWrapper {
   import scala.sys.process._
 
+  /** Unity3D Target Platforms
+   *
+   */
   object TargetPlatform extends Enumeration {
     type TargetPlatform = Value;
     val Windows, Windows64, OSX, OSX64, OSXUniversal, Linux32, Linux64, LinuxUniversal, Web, WebStreamed, None = Value;
   }
 
+  /** Defines the path of the Unity3d Editor executable */
   val UNITY_EXECUTABLE_SYSTEM_PROPERTY = "UNITY_EDITOR_PATH";
 
+  /** Detect the Unity3d executable to use
+   *
+    * First check if the [[UNITY_EXECUTABLE_SYSTEM_PROPERTY]] defines an executable
+    * Then, try default path depending on current OS
+    *
+   * @return Unity3d executable
+   */
   def detectUnityExecutable = {
     val systemUnityExecutable = System.getenv(UNITY_EXECUTABLE_SYSTEM_PROPERTY);
     var result:File = null;
@@ -42,6 +56,11 @@ object UnityWrapper {
     }
   }
 
+  /**
+   *
+   * @param osName
+   * @return Available build target for this OS
+   */
   def getBuildTargetCapabilitiesFromOS(osName:String):Seq[TargetPlatform.Value] = {
     osName toLowerCase match {
       case WindowsPattern(c) => Seq(TargetPlatform.Windows, TargetPlatform.Windows64, TargetPlatform.Web, TargetPlatform.WebStreamed);
