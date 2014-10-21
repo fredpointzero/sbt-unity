@@ -5,8 +5,12 @@
 > test
 > package
 
-$ exists target/precompile.txt
-$ exists target/postcompile.txt
-$ exists target/pretest.txt
-$ exists target/posttest.txt
-$ exists target/prepackage.txt
+$ exists target/precompile-test.txt
+$ exists target/postcompile-test.txt
+$ exists target/pretest-test.txt
+$ exists target/posttest-test.txt
+
+$ exists target/precompile-compile.txt
+$ exists target/postcompile-compile.txt
+
+$ exists target/prepackage-compile.txt

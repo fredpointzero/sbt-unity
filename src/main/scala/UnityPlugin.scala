@@ -253,7 +253,7 @@ object UnityPlugin extends sbt.Plugin {
 
     private def runPrePackageHooksIn(c:Configuration) = Def.task {
       (streams in c).value.log.info(s"Run Pre Package Hook In $c");
-      sbt.Keys.test.value;
+      (sbt.Keys.compile in c).value;
       CommonPipelineAPI.runHooks(
         Hook.PrePackage,
         (unityHooks in c).value,
@@ -355,15 +355,8 @@ object UnityPlugin extends sbt.Plugin {
       unityUnitTestFilters in test := Seq(),
       unityUnitTestCategories in test := Seq(),
 
-      sbt.Keys.test := {
-        compile.value;
-        runAllTestIn(test).value;
-      },
-
-      sbt.Keys.testOnly := {
-        compile.value;
-        runAllTestIn(testOnly).value;
-      },
+      sbt.Keys.test := runAllTestIn(test).value,
+      sbt.Keys.testOnly := runAllTestIn(testOnly).value,
 
       // Workspace
       workspaceDirectory := target.value / "test-workspace",
@@ -374,30 +367,34 @@ object UnityPlugin extends sbt.Plugin {
 
     private def runPreTestHookTaskIn(s: Scoped) = Def.task {
       (streams in s).value.log.info(s"Run Pre Test Hook In $s");
-      (UnityKeys.generateWorkspace in s).value;
+      (sbt.Keys.compile in s).value;
       runHooks(Hook.PreTest, (unityHooks in s).value, (workspaceDirectory in s).value, (streams in s).value.log);
     }
 
     private def runUnitTestTaskIn(s: Scoped) = Def.task {
       (streams in s).value.log.info(s"Run Unit Test In $s");
       runPreTestHookTaskIn(s).value;
-      runUnitTest(
-        (unityUnitTestFilters in s).value,
-        (unityUnitTestCategories in s).value,
-        (workspaceDirectory in s).value,
-        (streams in s).value.log
-      );
+      if (!(unityUnitTestSkip in s).value) {
+        runUnitTest(
+          (unityUnitTestFilters in s).value,
+          (unityUnitTestCategories in s).value,
+          (workspaceDirectory in s).value,
+          (streams in s).value.log
+        );
+      }
     }
 
     private def runIntegrationTestTaskIn(s: Scoped) = Def.task {
       (streams in s).value.log.info(s"Run Integration Test In $s");
       runUnitTestTaskIn(s).value;
-      runIntegrationTest(
-        (unityIntegrationTestScenes in s).value,
-        (unityIntegrationTestPlatform in s).value,
-        (workspaceDirectory in s).value,
-        (streams in s).value.log
-      );
+      if (!(unityIntegrationTestSkip in s).value) {
+        runIntegrationTest(
+          (unityIntegrationTestScenes in s).value,
+          (unityIntegrationTestPlatform in s).value,
+          (workspaceDirectory in s).value,
+          (streams in s).value.log
+        );
+      }
     }
 
     private def runPostTestTaskHookIn(s: Scoped) = Def.task {
